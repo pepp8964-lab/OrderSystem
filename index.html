@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF--8" />
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Система Обліку Нарядів</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root, .theme-dark {
+        --color-bg-primary: #0f172a; /* slate-900 */
+        --color-bg-secondary: #1e293b; /* slate-800 */
+        --color-sidebar: rgba(15, 23, 42, 0.8); /* slate-900 with opacity */
+        --color-card: rgba(30, 41, 59, 0.5); /* slate-800 with opacity */
+        --color-accent: #818cf8; /* indigo-400 */
+        --color-accent-hover: #a78bfa; /* violet-400 */
+        --color-text-header: #f8fafc; /* slate-50 */
+        --color-text-primary: #cbd5e1; /* slate-300 */
+        --color-text-secondary: #94a3b8; /* slate-400 */
+        --color-border: #334155; /* slate-700 */
+        --color-weekend-highlight-bg: #1a2436;
+        --color-day-off-bg: #1e293b;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #facc15; --color-duty-sick-text: #1f2937;
+        --color-duty-trip-bg: #3b82f6; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #ef4444; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #a855f7; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #64748b; --color-duty-other-text: #ffffff;
+      }
+      .theme-white {
+        --color-bg-primary: #ffffff;
+        --color-bg-secondary: #f9fafb;
+        --color-sidebar: #1f2937;
+        --color-card: #ffffff;
+        --color-accent: #06b6d4; /* Cyan 500 */
+        --color-accent-hover: #0891b2; /* Cyan 600 */
+        --color-text-header: #111827; /* Gray 900 */
+        --color-text-primary: #1f2937; /* Gray 800 */
+        --color-text-secondary: #6b7280; /* Gray 500 */
+        --color-border: #e5e7eb; /* Gray 200 */
+        --color-weekend-highlight-bg: #f3f4f6; /* gray-100 */
+        --color-day-off-bg: #e5e7eb;
+        
+        --color-duty-onduty-bg: #111827; --color-duty-onduty-text: #ffffff;
+        --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #bfdbfe; --color-duty-trip-text: #000000;
+        --color-duty-hospital-bg: #fecaca; --color-duty-hospital-text: #000000;
+        --color-duty-leave-bg: #e9d5ff; --color-duty-leave-text: #000000;
+        --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
+      }
+      .theme-mint {
+        --color-bg-primary: #F0FDF4; /* Green 50 */
+        --color-bg-secondary: #DCFCE7; /* Green 100 */
+        --color-sidebar: #14532D; /* Green 900 */
+        --color-card: #ffffff;
+        --color-accent: #22C55E; /* Green 500 */
+        --color-accent-hover: #16A34A; /* Green 600 */
+        --color-text-header: #14532D; /* Green 900 */
+        --color-text-primary: #166534; /* Green 800 */
+        --color-text-secondary: #15803D; /* Green 700 */
+        --color-border: #BBF7D0; /* Green 200 */
+        --color-weekend-highlight-bg: #ecfdf5; /* green-50 */
+        --color-day-off-bg: #dcfce7;
+
+        --color-duty-onduty-bg: #14532D; --color-duty-onduty-text: #ffffff;
+        --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #bfdbfe; --color-duty-trip-text: #000000;
+        --color-duty-hospital-bg: #fecaca; --color-duty-hospital-text: #000000;
+        --color-duty-leave-bg: #e9d5ff; --color-duty-leave-text: #000000;
+        --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
+      }
+      .theme-mint-dark {
+        --color-bg-primary: #064e3b; /* green-900 */
+        --color-bg-secondary: #052e16; /* green-950 */
+        --color-sidebar: #065f46; /* green-800 */
+        --color-card: #047857; /* green-700 */
+        --color-accent: #34d399; /* emerald-400 */
+        --color-accent-hover: #6ee7b7; /* emerald-300 */
+        --color-text-header: #ecfdf5; /* green-50 */
+        --color-text-primary: #d1fae5; /* green-100 */
+        --color-text-secondary: #a7f3d0; /* green-200 */
+        --color-border: #065f46; /* green-800 */
+        --color-weekend-highlight-bg: #022c22;
+        --color-day-off-bg: #064e3b;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-navy {
+        --color-bg-primary: #f8fafc;
+        --color-bg-secondary: #f1f5f9;
+        --color-sidebar: #1e293b;
+        --color-card: #ffffff;
+        --color-accent: #4f46e5;
+        --color-accent-hover: #4338ca;
+        --color-text-header: #1e293b;
+        --color-text-primary: #334155;
+        --color-text-secondary: #64748b;
+        --color-border: #e2e8f0;
+        --color-weekend-highlight-bg: #f1f5f9;
+        --color-day-off-bg: #e2e8f0;
+
+        --color-duty-onduty-bg: #1e293b; --color-duty-onduty-text: #ffffff;
+        --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #bfdbfe; --color-duty-trip-text: #000000;
+        --color-duty-hospital-bg: #fecaca; --color-duty-hospital-text: #000000;
+        --color-duty-leave-bg: #e9d5ff; --color-duty-leave-text: #000000;
+        --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
+      }
+      .theme-navy-dark {
+        --color-bg-primary: #0f172a;
+        --color-bg-secondary: #1e293b;
+        --color-sidebar: #334155;
+        --color-card: #283345;
+        --color-accent: #818cf8;
+        --color-accent-hover: #6366f1;
+        --color-text-header: #f8fafc;
+        --color-text-primary: #e2e8f0;
+        --color-text-secondary: #94a3b8;
+        --color-border: #475569;
+        --color-weekend-highlight-bg: #2a3547;
+        --color-day-off-bg: #1e293b;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+       .theme-rose {
+        --color-bg-primary: #fff1f2;
+        --color-bg-secondary: #ffe4e6;
+        --color-sidebar: #881337;
+        --color-card: #ffffff;
+        --color-accent: #f43f5e;
+        --color-accent-hover: #e11d48;
+        --color-text-header: #881337;
+        --color-text-primary: #9f1239;
+        --color-text-secondary: #be123c;
+        --color-border: #fecdd3;
+        --color-weekend-highlight-bg: #fff1f2;
+        --color-day-off-bg: #ffe4e6;
+
+        --color-duty-onduty-bg: #881337; --color-duty-onduty-text: #ffffff;
+        --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #bfdbfe; --color-duty-trip-text: #000000;
+        --color-duty-hospital-bg: #fecaca; --color-duty-hospital-text: #000000;
+        --color-duty-leave-bg: #e9d5ff; --color-duty-leave-text: #000000;
+        --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
+      }
+      .theme-rose-dark {
+        --color-bg-primary: #581c87;
+        --color-bg-secondary: #4c1d95;
+        --color-sidebar: #6d28d9;
+        --color-card: #5b21b6;
+        --color-accent: #a78bfa;
+        --color-accent-hover: #c4b5fd;
+        --color-text-header: #f5d0fe;
+        --color-text-primary: #e9d5ff;
+        --color-text-secondary: #d8b4fe;
+        --color-border: #6d28d9;
+        --color-weekend-highlight-bg: #4a1a8c;
+        --color-day-off-bg: #581c87;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-orange {
+        --color-bg-primary: #fff7ed;
+        --color-bg-secondary: #ffedd5;
+        --color-sidebar: #7c2d12;
+        --color-card: #ffffff;
+        --color-accent: #f97316;
+        --color-accent-hover: #ea580c;
+        --color-text-header: #7c2d12;
+        --color-text-primary: #9a3412;
+        --color-text-secondary: #c2410c;
+        --color-border: #fed7aa;
+        --color-weekend-highlight-bg: #fff7ed;
+        --color-day-off-bg: #ffedd5;
+
+        --color-duty-onduty-bg: #7c2d12; --color-duty-onduty-text: #ffffff;
+        --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #bfdbfe; --color-duty-trip-text: #000000;
+        --color-duty-hospital-bg: #fecaca; --color-duty-hospital-text: #000000;
+        --color-duty-leave-bg: #e9d5ff; --color-duty-leave-text: #000000;
+        --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
+      }
+      .theme-orange-dark {
+        --color-bg-primary: #4a1d33;
+        --color-bg-secondary: #581c3c;
+        --color-sidebar: #831843;
+        --color-card: #9d174d;
+        --color-accent: #f9a8d4;
+        --color-accent-hover: #fbcfe8;
+        --color-text-header: #fce7f3;
+        --color-text-primary: #fce7f3;
+        --color-text-secondary: #fbcfe8;
+        --color-border: #831843;
+        --color-weekend-highlight-bg: #4a1c32;
+        --color-day-off-bg: #581c3c;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-bw {
+        --color-bg-primary: #0a0a0a;
+        --color-bg-secondary: #141414;
+        --color-sidebar: #101010;
+        --color-card: rgba(26, 26, 26, 0.7);
+        --color-accent: #ffffff;
+        --color-accent-hover: #e0e0e0;
+        --color-text-header: #ffffff;
+        --color-text-primary: #e0e0e0;
+        --color-text-secondary: #a0a0a0;
+        --color-border: #333333;
+        --color-weekend-highlight-bg: #1a1a1a;
+        --color-day-off-bg: #222222;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-br {
+        --color-bg-primary: #0a0a0a;
+        --color-bg-secondary: #1a0505;
+        --color-sidebar: #101010;
+        --color-card: rgba(26, 10, 10, 0.7);
+        --color-accent: #ef4444; /* red-500 */
+        --color-accent-hover: #f87171; /* red-400 */
+        --color-text-header: #ffffff;
+        --color-text-primary: #e0e0e0;
+        --color-text-secondary: #a0a0a0;
+        --color-border: #450a0a;
+        --color-weekend-highlight-bg: #1a0505;
+        --color-day-off-bg: #2b0b0b;
+        
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-bb {
+        --color-bg-primary: #050a1a;
+        --color-bg-secondary: #0a142e;
+        --color-sidebar: #101010;
+        --color-card: rgba(10, 20, 46, 0.7);
+        --color-accent: #3b82f6; /* blue-500 */
+        --color-accent-hover: #60a5fa; /* blue-400 */
+        --color-text-header: #ffffff;
+        --color-text-primary: #e0e0e0;
+        --color-text-secondary: #a0a0a0;
+        --color-border: #1e3a8a;
+        --color-weekend-highlight-bg: #0a142e;
+        --color-day-off-bg: #111c3d;
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-by {
+        --color-bg-primary: #1a1605;
+        --color-bg-secondary: #2e280a;
+        --color-sidebar: #101010;
+        --color-card: rgba(46, 40, 10, 0.7);
+        --color-accent: #facc15; /* yellow-400 */
+        --color-accent-hover: #fde047; /* yellow-300 */
+        --color-text-header: #ffffff;
+        --color-text-primary: #e0e0e0;
+        --color-text-secondary: #a0a0a0;
+        --color-border: #713f12;
+        --color-weekend-highlight-bg: #2e280a;
+        --color-day-off-bg: #3d3511;
+        
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      .theme-vibrant-dark {
+        --color-bg-primary: #0d0221;
+        --color-bg-secondary: #240b36;
+        --color-sidebar: #120330;
+        --color-card: rgba(20, 4, 51, 0.7);
+        --color-accent: #ff00e5;
+        --color-accent-hover: #ff55f1;
+        --color-text-header: #f0f8ff;
+        --color-text-primary: #d4d0f5;
+        --color-text-secondary: #8c82a3;
+        --color-border: rgba(255, 0, 229, 0.3);
+        --color-weekend-highlight-bg: rgba(255, 0, 229, 0.07);
+        --color-day-off-bg: rgba(255, 0, 229, 0.05);
+
+        --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
+        --color-duty-sick-bg: #b49b0e; --color-duty-sick-text: #000000;
+        --color-duty-trip-bg: #2a61c1; --color-duty-trip-text: #ffffff;
+        --color-duty-hospital-bg: #bd3838; --color-duty-hospital-text: #ffffff;
+        --color-duty-leave-bg: #8242ba; --color-duty-leave-text: #ffffff;
+        --color-duty-other-bg: #5a677a; --color-duty-other-text: #ffffff;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      
+      body.theme-dark {
+        background: #0f172a; /* Fallback */
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      }
+      body.theme-bw {
+        background-color: #0a0a0a;
+      }
+      body.theme-br {
+        background: #0a0a0a;
+        background: radial-gradient(circle at top right, #3f1212 0%, #0a0a0a 60%);
+      }
+      body.theme-bb {
+        background: #050a1a;
+        background: radial-gradient(circle at top right, #1e3a8a 0%, #050a1a 60%);
+      }
+      body.theme-by {
+        background: #1a1605;
+        background: radial-gradient(circle at top right, #713f12 0%, #1a1605 60%);
+      }
+      
+      .theme-dark .bg-card, .theme-dark .bg-sidebar,
+      .theme-bw .bg-card, .theme-bw .bg-sidebar,
+      .theme-br .bg-card, .theme-br .bg-sidebar,
+      .theme-bb .bg-card, .theme-bb .bg-sidebar,
+      .theme-by .bg-card, .theme-by .bg-sidebar {
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      .theme-white .schedule-table th, .theme-white .schedule-table td,
+      .theme-mint .schedule-table th, .theme-mint .schedule-table td,
+      .theme-navy .schedule-table th, .theme-navy .schedule-table td,
+      .theme-rose .schedule-table th, .theme-rose .schedule-table td,
+      .theme-orange .schedule-table th, .theme-orange .schedule-table td {
+        color: #111827;
+      }
+      .theme-white .schedule-thead, .theme-mint .schedule-thead {
+        background-color: var(--color-bg-secondary);
+      }
+      
+      @keyframes pulse-red-border {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.0); }
+        50% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.9); }
+      }
+      .range-start-pulse {
+        animation: pulse-red-border 1.5s infinite;
+        border-radius: 0.5rem;
+      }
+       @keyframes pulse-red-dot {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.25); opacity: .75; }
+      }
+       @keyframes pulse-attention {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+      }
+      .animate-pulse-attention {
+        animation: pulse-attention 0.8s 2 ease-in-out;
+      }
+      @keyframes top-pulse-anim {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+      }
+      .animate-top-pulse {
+          animation: top-pulse-anim 1s infinite ease-in-out;
+      }
+      @keyframes gradient-text-anim {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      .animate-gradient-text {
+        background: linear-gradient(90deg, #ff00e5, #3b82f6, #facc15, #ff00e5);
+        background-size: 200% 200%;
+        color: transparent;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: gradient-text-anim 4s ease infinite;
+      }
+
+      .schedule-table tbody tr {
+        transition: transform 300ms ease-in-out, opacity 300ms ease-in-out;
+      }
+      .schedule-table tbody td, .schedule-table thead th {
+        position: relative;
+      }
+      
+      @keyframes fadeOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.9); }
+      }
+      .is-deleting {
+        animation: fadeOut 0.5s ease-out forwards;
+      }
+
+      /* --- SCHEDULE HOVER HIGHLIGHT --- */
+      .schedule-table {
+        --highlight-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+      }
+      
+      /* Remove default background color on hover */
+      .schedule-highlight-row-hover > td,
+      .schedule-highlight-row-hover > th,
+      .schedule-highlight-col-hover {
+        background-color: transparent !important;
+      }
+      
+      /* Base for pseudo-elements that will form the frame */
+      .schedule-table td::after, .schedule-table th::after {
+        content: '';
+        position: absolute;
+        inset: -1px; /* Draw outside cell bounds to cover table grid lines */
+        border: 1px solid transparent;
+        pointer-events: none;
+        transition: border-color 0.1s ease-in-out;
+        z-index: 1;
+      }
+      
+      /* Add top and bottom borders for all cells in the hovered row */
+      .schedule-highlight-row-hover > td::after,
+      .schedule-highlight-row-hover > th::after {
+        border-top-color: var(--highlight-color);
+        border-bottom-color: var(--highlight-color);
+      }
+
+      /* Add the left border for the very first cell of the hovered row */
+      .schedule-highlight-row-hover > td:first-of-type::after,
+      .schedule-highlight-row-hover > th:first-of-type::after {
+        border-left-color: var(--highlight-color);
+      }
+
+      /* Add the right border for the very last cell of the hovered row */
+      .schedule-highlight-row-hover > td:last-of-type::after {
+        border-right-color: var(--highlight-color);
+      }
+      
+      /* Add left and right borders for all cells in the hovered column */
+      .schedule-highlight-col-hover::after {
+        border-left-color: var(--highlight-color);
+        border-right-color: var(--highlight-color);
+      }
+      
+      /* The intersection cell will correctly inherit all 4 border colors from the rules above. */
+      /* We just need to bump its z-index and set border-color to ensure it renders cleanly on top. */
+      .schedule-highlight-row-hover > .schedule-highlight-col-hover::after {
+        z-index: 2;
+        border-color: var(--highlight-color);
+      }
+      
+      .schedule-day-highlight-problem {
+        background-color: color-mix(in srgb, #ef4444 20%, transparent);
+      }
+
+      /* Glowing Weekend Highlight */
+      @keyframes weekend-glow-pulse {
+        0%, 100% {
+          box-shadow: inset 0 0 2px 0px color-mix(in srgb, var(--color-accent) 50%, transparent);
+        }
+        50% {
+          box-shadow: inset 0 0 5px 1px color-mix(in srgb, var(--color-accent) 70%, transparent);
+        }
+      }
+      .schedule-weekend-glow {
+        animation: weekend-glow-pulse 2.5s infinite ease-in-out;
+      }
+
+      /* New Category connector lines */
+      .category-children-container {
+        position: relative;
+        padding-left: 28px; /* 12px for line + 16px spacing */
+      }
+      .category-children-container::before {
+        content: '';
+        position: absolute;
+        left: 12px;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background-color: var(--color-border);
+      }
+      .category-child-item {
+        position: relative;
+      }
+      .category-child-item::before {
+        content: '';
+        position: absolute;
+        left: -16px; /* Connect to the vertical line */
+        top: 50%;
+        width: 16px;
+        height: 1px;
+        background-color: var(--color-border);
+      }
+      .category-children-container > .category-child-item:last-child::before {
+        /* Optional: if you want the vertical line to stop at the last child */
+        /* height: 50%; top: 0; */
+      }
+
+      /* New Themes Button Hover Effect */
+      .theme-bw .bg-accent, .theme-br .bg-accent, .theme-bb .bg-accent, .theme-by .bg-accent {
+        transition: transform 0.2s ease-in-out;
+      }
+      .theme-bw .bg-accent:hover:not(:disabled),
+      .theme-br .bg-accent:hover:not(:disabled),
+      .theme-bb .bg-accent:hover:not(:disabled),
+      .theme-by .bg-accent:hover:not(:disabled) {
+        transform: scale(1.05);
+      }
+
+      /* Vibrant Theme Additions */
+      @keyframes vibrant-gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      body.theme-vibrant-dark {
+        background: linear-gradient(-45deg, #0d0221, #240b36, #0d0221, #3c1053) !important;
+        background-size: 400% 400% !important;
+        animation: vibrant-gradient 15s ease infinite !important;
+      }
+      
+      .theme-vibrant-dark h1, .theme-vibrant-dark h2, .theme-vibrant-dark h3, .theme-vibrant-dark .text-header {
+        text-shadow: 0 0 5px var(--color-accent), 0 0 8px var(--color-accent);
+      }
+
+      .theme-vibrant-dark .bg-card {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 0 15px rgba(255, 0, 229, 0.2), 0 0 30px rgba(255, 0, 229, 0.1);
+        border: 1px solid var(--color-border);
+      }
+
+      .theme-vibrant-dark .bg-accent {
+        box-shadow: 0 0 5px var(--color-accent), 0 0 10px var(--color-accent);
+        transition: all 0.3s ease-in-out;
+      }
+      .theme-vibrant-dark .bg-accent:hover {
+        box-shadow: 0 0 10px var(--color-accent-hover), 0 0 20px var(--color-accent-hover);
+        transform: scale(1.05);
+      }
+
+      /* Glassmorphism UI */
+      .glass-ui-enabled .bg-card, 
+      .glass-ui-enabled .bg-sidebar,
+      .glass-ui-enabled button:not(.bg-accent):not(.bg-red-600):not(.bg-green-600):not([class*="-500"]) {
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      }
+      .glass-ui-enabled button[class*="bg-"][class*="-500"],
+      .glass-ui-enabled .bg-accent {
+        border: 1px solid color-mix(in srgb, var(--color-accent) 60%, transparent) !important;
+        box-shadow: 0 0 5px color-mix(in srgb, var(--color-accent) 30%, transparent);
+      }
+      .glass-ui-enabled .bg-secondary {
+        background: rgba(255, 255, 255, 0.05) !important;
+      }
+       .glass-ui-enabled .text-header,
+       .glass-ui-enabled .text-primary-text,
+       .glass-ui-enabled .text-secondary-text,
+       .glass-ui-enabled h1,
+       .glass-ui-enabled h2,
+       .glass-ui-enabled h3,
+       .glass-ui-enabled p,
+       .glass-ui-enabled span,
+       .glass-ui-enabled label,
+       .glass-ui-enabled button {
+         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+       }
+
+    </style>
+    <script>
+      tailwind.config = {
+        future: {
+            hoverOnlyWhenSupported: true,
+        },
+        theme: {
+          extend: {
+            colors: {
+              'primary': 'var(--color-bg-primary)',
+              'secondary': 'var(--color-bg-secondary)',
+              'sidebar': 'var(--color-sidebar)',
+              'card': 'var(--color-card)',
+              'accent': 'var(--color-accent)',
+              'accent-hover': 'var(--color-accent-hover)',
+              'header': 'var(--color-text-header)',
+              'primary-text': 'var(--color-text-primary)',
+              'secondary-text': 'var(--color-text-secondary)',
+              'border-color': 'var(--color-border)',
+              'day-off': 'var(--color-day-off-bg)',
+              'weekend-highlight': 'var(--color-weekend-highlight-bg)',
+            },
+            keyframes: {
+              fadeInOut: {
+                '0%': { opacity: '0', transform: 'translate(-50%, 10px)' },
+                '10%, 90%': { opacity: '1', transform: 'translate(-50%, 0)' },
+                '100%': { opacity: '0', transform: 'translate(-50%, 10px)' },
+              },
+              load: {
+                '0%': { width: '0%' },
+                '100%': { width: '100%' },
+              }
+            },
+            animation: {
+              'fade-in-out': 'fadeInOut 3s ease-in-out forwards',
+              'load-bar': 'load 3s ease-in-out forwards',
+            }
+          }
+        }
+      }
+    </script>
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+     <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-primary">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

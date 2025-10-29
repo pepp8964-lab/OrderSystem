@@ -1,0 +1,166 @@
+import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
+import useLocalStorage from '../hooks/useLocalStorage';
+
+// Theme Context
+export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by';
+
+
+interface ThemeContextType {
+    theme: Theme;
+    setTheme: (theme: Theme) => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    // We keep 'black' in the local storage hook type to read old values
+    const [theme, setTheme] = useLocalStorage<'black' | Theme>('app-theme', 'bb');
+
+    const effectiveTheme = theme === 'black' ? 'dark' : theme;
+    
+    const contextValue = useMemo(() => ({
+        theme: effectiveTheme,
+        setTheme: setTheme as (theme: Theme) => void,
+    }), [effectiveTheme, setTheme]);
+
+    return (
+        <ThemeContext.Provider value={contextValue}>
+            {children}
+        </ThemeContext.Provider>
+    );
+};
+
+export const useTheme = () => {
+    const context = useContext(ThemeContext);
+    if (context === undefined) {
+        throw new Error('useTheme must be used within a ThemeProvider');
+    }
+    return context;
+};
+
+// Toast Context
+interface Toast {
+    message: string;
+    id: number;
+}
+
+interface ToastContextType {
+    toast: Toast | null;
+    showToast: (message: string) => void;
+    hideToast: () => void;
+}
+
+const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [toast, setToast] = useState<Toast | null>(null);
+
+    const showToast = useCallback((message: string) => {
+        setToast({ message, id: Date.now() });
+    }, []);
+
+    const hideToast = useCallback(() => {
+        setToast(null);
+    }, []);
+
+    return (
+        <ToastContext.Provider value={{ toast, showToast, hideToast }}>
+            {children}
+        </ToastContext.Provider>
+    );
+};
+
+export const useToast = () => {
+    const context = useContext(ToastContext);
+    if (context === undefined) {
+        throw new Error('useToast must be used within a ToastProvider');
+    }
+    return context;
+};
+
+
+// Action Log Context
+interface ActionLog {
+    id: number;
+    timestamp: string;
+    message: string;
+}
+
+interface ActionLogContextType {
+    logs: ActionLog[];
+    logAction: (message: string) => void;
+    clearLogs: () => void;
+}
+
+const ActionLogContext = createContext<ActionLogContextType | undefined>(undefined);
+
+export const ActionLogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [logs, setLogs] = useLocalStorage<ActionLog[]>('action-logs', []);
+
+    useEffect(() => {
+        const today = new Date().toLocaleDateString('uk-UA');
+        const lastLogDate = logs.length > 0 ? new Date(logs[0].id).toLocaleDateString('uk-UA') : null;
+        
+        if(lastLogDate && lastLogDate !== today) {
+            setLogs([]);
+        }
+    }, []); // Run only once on app start
+
+    const logAction = useCallback((message: string) => {
+        const now = new Date();
+        const newLog: ActionLog = {
+            id: now.getTime(),
+            timestamp: now.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            message: message,
+        };
+        setLogs(prev => [newLog, ...prev]);
+    }, [setLogs]);
+
+    const clearLogs = useCallback(() => {
+        setLogs([]);
+    }, [setLogs]);
+
+    return (
+        <ActionLogContext.Provider value={{ logs, logAction, clearLogs }}>
+            {children}
+        </ActionLogContext.Provider>
+    );
+};
+
+export const useActionLog = () => {
+    const context = useContext(ActionLogContext);
+    if (!context) {
+        throw new Error('useActionLog must be used within an ActionLogProvider');
+    }
+    return context;
+};
+
+
+// Modal Context
+interface ModalContextType {
+    isRosterModalOpen: boolean;
+    openRosterModal: () => void;
+    closeRosterModal: () => void;
+}
+
+const ModalContext = createContext<ModalContextType | undefined>(undefined);
+
+export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+    const openRosterModal = useCallback(() => setIsRosterModalOpen(true), []);
+    const closeRosterModal = useCallback(() => setIsRosterModalOpen(false), []);
+
+    return (
+        <ModalContext.Provider value={{ isRosterModalOpen, openRosterModal, closeRosterModal }}>
+            {children}
+        </ModalContext.Provider>
+    );
+}
+
+export const useModal = () => {
+    const context = useContext(ModalContext);
+    if (!context) {
+        throw new Error('useModal must be used within a ModalProvider');
+    }
+    return context;
+};
