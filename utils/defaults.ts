@@ -15,5 +15,11 @@ export const defaultSettings: AppSettings = {
       improvedDutyForecastEnabled: false,
       aiStructureDeclensionEnabled: false,
       quickDbLoadEnabled: true,
-    }
+    },
+    fontSettings: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+        fontSize: 16,
+        textColor: '',
+    },
+    defaultTheme: 'halloween',
 };

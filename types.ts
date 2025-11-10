@@ -1,4 +1,5 @@
 import { DutyStatus } from './constants';
+import { Theme } from './context/ThemeContext';
 
 export { DutyStatus };
 
@@ -114,12 +115,20 @@ export interface ExperimentalFeatures {
     quickDbLoadEnabled: boolean;
 }
 
+export interface FontSettings {
+    fontFamily: string;
+    fontSize: number;
+    textColor: string;
+}
+
 export interface AppSettings {
     autoSaveInterval: number;
     backupPath: string;
     highlightOnHover: boolean;
     experimentalFeatures: ExperimentalFeatures;
     dbFilePath: string;
+    fontSettings: FontSettings;
+    defaultTheme: Theme;
 }
 
 export type AllData = {

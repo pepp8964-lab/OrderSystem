@@ -100,7 +100,7 @@ const StartupScreen: React.FC<{
 
     return (
         <div className="w-full h-screen flex flex-col md:flex-row justify-center items-center bg-primary text-primary-text p-8">
-            <div className="w-full md:w-1/2 flex justify-center items-center p-8">
+            <div className="w-full md:w-1/2 flex justify-center items-center p-8 logo-container">
                 <img src="/assets/logo.png" alt="Логотип" className="max-w-xs lg:max-w-sm xl:max-w-md w-full h-auto" />
             </div>
              <div className="w-full md:w-1/2 flex flex-col justify-center items-center md:items-start text-center md:text-left p-8">
@@ -170,7 +170,7 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(`theme-${theme}`);
-    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by', 'military', 'matrica', 'stalker', 'prime'].includes(theme)) {
+    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by', 'military', 'matrica', 'stalker', 'prime', 'robot', 'cowboy', 'fall', 'christmas', 'valentine', 'halloween', 'grass', 'candy', 'potter', 'spotlight'].includes(theme)) {
       // These themes manage their own complex backgrounds via body.theme-xyz selectors in CSS
     } else {
       document.body.classList.add('bg-gradient-to-br', 'from-primary', 'to-secondary', 'transition-colors', 'duration-500');
@@ -182,6 +182,19 @@ const App: React.FC = () => {
         document.body.classList.remove('glass-ui-enabled');
     }
   }, [theme, settings.experimentalFeatures?.enabled, settings.experimentalFeatures?.glassmorphismEnabled]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.fontSettings) {
+        root.style.setProperty('--font-family', settings.fontSettings.fontFamily);
+        root.style.setProperty('--base-font-size', `${settings.fontSettings.fontSize}px`);
+        if (settings.fontSettings.textColor) {
+            root.style.setProperty('--user-text-primary-override', settings.fontSettings.textColor);
+        } else {
+            root.style.removeProperty('--user-text-primary-override');
+        }
+    }
+  }, [settings.fontSettings]);
 
   useEffect(() => {
     if (settings.autoSaveInterval > 0) {

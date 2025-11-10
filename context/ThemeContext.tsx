@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useCallback, use
 import useLocalStorage from '../hooks/useLocalStorage';
 
 // Theme Context
-export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by' | 'military' | 'matrica' | 'stalker' | 'prime';
+export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by' | 'military' | 'matrica' | 'stalker' | 'prime' | 'robot' | 'cowboy' | 'fall' | 'christmas' | 'valentine' | 'halloween' | 'grass' | 'candy' | 'potter' | 'spotlight';
 
 
 interface ThemeContextType {
@@ -13,8 +13,22 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // We keep 'black' in the local storage hook type to read old values
-    const [theme, setTheme] = useLocalStorage<'black' | Theme>('app-theme', 'bb');
+    const getDefaultTheme = (): Theme => {
+        try {
+            const settingsItem = localStorage.getItem('app-settings');
+            if (settingsItem) {
+                const settings = JSON.parse(settingsItem);
+                if (settings.defaultTheme) {
+                    return settings.defaultTheme;
+                }
+            }
+        } catch (e) { 
+            console.error("Could not parse settings to get default theme", e);
+        }
+        return 'halloween';
+    };
+
+    const [theme, setTheme] = useLocalStorage<'black' | Theme>('app-theme', getDefaultTheme());
 
     const effectiveTheme = theme === 'black' ? 'dark' : theme;
     
