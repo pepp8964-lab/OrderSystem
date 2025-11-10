@@ -60,7 +60,10 @@ const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
       </button>
       <aside className={`non-printable bg-sidebar w-72 min-h-screen p-6 flex-shrink-0 flex flex-col justify-between fixed lg:relative z-40 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl backdrop-blur-lg`}>
         <div className="flex-grow flex flex-col">
-          <h1 className="text-white text-2xl font-bold text-center tracking-wider mb-6">НАРЯДИ</h1>
+          <button onClick={openExitModal} className="text-center mb-6 w-full hover:bg-white/10 p-2 rounded-lg transition-colors">
+              <h1 className="text-white text-4xl font-bold tracking-wider">СОН</h1>
+              <p className="text-secondary-text text-xs tracking-widest">Система обліку нарядів</p>
+          </button>
           <div className="relative mb-6">
               <SearchIcon className="w-5 h-5 absolute top-1/2 -translate-y-1/2 left-3 text-secondary-text pointer-events-none" />
               <input

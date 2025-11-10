@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useCallback, use
 import useLocalStorage from '../hooks/useLocalStorage';
 
 // Theme Context
-export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by';
+export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by' | 'military' | 'matrica' | 'stalker' | 'prime';
 
 
 interface ThemeContextType {

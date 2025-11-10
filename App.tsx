@@ -99,22 +99,26 @@ const StartupScreen: React.FC<{
     };
 
     return (
-        <div className="w-full h-screen flex flex-col justify-center items-center bg-primary text-primary-text">
-            <img src="/assets/logo.png" alt="Логотип" className="w-32 h-32" />
-            <h1 className="text-4xl font-bold text-header mt-4 mb-12">Система Обліку Нарядів</h1>
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
-                <button 
-                    onClick={() => fileInputRef.current?.click()} 
-                    className="bg-accent text-white px-8 py-4 rounded-lg hover:bg-accent-hover transition-colors shadow-lg text-lg font-semibold"
-                >
-                    Відкрити розклад
-                </button>
-                <button 
-                    onClick={onCreateNew} 
-                    className="bg-secondary text-primary-text px-8 py-4 rounded-lg hover:bg-primary transition-colors shadow-lg border border-border-color text-lg font-semibold"
-                >
-                    Створити новий
-                </button>
+        <div className="w-full h-screen flex flex-col md:flex-row justify-center items-center bg-primary text-primary-text p-8">
+            <div className="w-full md:w-1/2 flex justify-center items-center p-8">
+                <img src="/assets/logo.png" alt="Логотип" className="max-w-xs lg:max-w-sm xl:max-w-md w-full h-auto" />
+            </div>
+             <div className="w-full md:w-1/2 flex flex-col justify-center items-center md:items-start text-center md:text-left p-8">
+                <h1 className="text-4xl lg:text-5xl font-bold text-header mb-12">Система Обліку Нарядів</h1>
+                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        className="bg-accent text-white px-8 py-4 rounded-lg hover:bg-accent-hover transition-colors shadow-lg text-lg font-semibold"
+                    >
+                        Відкрити розклад
+                    </button>
+                    <button 
+                        onClick={onCreateNew} 
+                        className="bg-secondary text-primary-text px-8 py-4 rounded-lg hover:bg-primary transition-colors shadow-lg border border-border-color text-lg font-semibold"
+                    >
+                        Створити новий
+                    </button>
+                </div>
             </div>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
         </div>
@@ -166,7 +170,7 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(`theme-${theme}`);
-    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by'].includes(theme)) {
+    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by', 'military', 'matrica', 'stalker', 'prime'].includes(theme)) {
       // These themes manage their own complex backgrounds via body.theme-xyz selectors in CSS
     } else {
       document.body.classList.add('bg-gradient-to-br', 'from-primary', 'to-secondary', 'transition-colors', 'duration-500');
