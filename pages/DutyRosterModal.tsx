@@ -1,4 +1,3 @@
-// FIX: Import 'useCallback' from React to resolve 'Cannot find name' errors.
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Person, Category, ScheduleData, DutyStatus, Weapon, Subdivision } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PrintIcon, CopyIcon, PhoneIcon } from '../components/icons/Icons';

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import People from './pages/People';
@@ -10,7 +10,7 @@ import Settings from './pages/Settings';
 import Updates, { CHANGELOG_DATA } from './pages/Updates';
 import Structure from './pages/Structure';
 import Laboratory from './pages/Laboratory';
-import { useTheme, useToast, useActionLog } from './context/ThemeContext';
+import { useTheme, useToast, useActionLog, useModal } from './context/ThemeContext';
 import Card from './components/Card';
 import { AllData, AppSettings } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -165,7 +165,10 @@ const App: React.FC = () => {
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const { showToast } = useToast();
+  const { openRosterModal, openHotkeyHelp, closeRosterModal, closeHotkeyHelp } = useModal();
   const [settings] = useLocalStorage<AppSettings>('app-settings', defaultSettings);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     document.body.className = '';
@@ -195,6 +198,43 @@ const App: React.FC = () => {
         }
     }
   }, [settings.fontSettings]);
+  
+  useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Hotkey for "New"
+            if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey) {
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+                
+                e.preventDefault();
+                if (location.pathname.startsWith('/people')) navigate('/people?action=create');
+                if (location.pathname.startsWith('/categories')) navigate('/categories?action=create');
+                if (location.pathname.startsWith('/weapons')) navigate('/weapons?action=create');
+            }
+            
+            // Hotkey for help modal
+            if (e.key === '?' && e.shiftKey) {
+                e.preventDefault();
+                openHotkeyHelp();
+            }
+
+            // Hotkey for saving (exporting)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                openRosterModal(); // Re-purposed to open the duty roster, can be changed
+            }
+            
+            // Hotkey for closing modals
+            if (e.key === 'Escape') {
+                // This will close the topmost modal
+                closeRosterModal(); 
+                closeHotkeyHelp();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [location, navigate, openRosterModal, openHotkeyHelp, closeRosterModal, closeHotkeyHelp]);
 
   useEffect(() => {
     if (settings.autoSaveInterval > 0) {

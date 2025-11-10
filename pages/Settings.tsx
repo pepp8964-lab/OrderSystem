@@ -2,14 +2,12 @@ import React from 'react';
 import Card from '../components/Card';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import useLocalStorage from '../hooks/useLocalStorage';
-// FIX: Import `useToast` to correctly access the `showToast` function.
 import { useTheme, useToast } from '../context/ThemeContext';
 import { AppSettings } from '../types';
 import { defaultSettings } from '../utils/defaults';
 
 const Settings: React.FC = () => {
     const [settings, setSettings] = useLocalStorage<AppSettings>('app-settings', defaultSettings);
-    // FIX: The `showToast` function comes from the `useToast` hook, not `useTheme`.
     const { theme } = useTheme();
     const { showToast } = useToast();
 

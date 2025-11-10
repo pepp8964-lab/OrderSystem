@@ -21,13 +21,11 @@ function mergeDefaults<T extends object>(data: Partial<T>, defaults: T): T {
 }
 
 
-// FIX: Removed 'extends object' constraint to allow primitive types.
 function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
       const parsedItem = item ? JSON.parse(item) : initialValue;
-      // FIX: Only merge defaults for objects.
       if (typeof initialValue === 'object' && initialValue !== null && !Array.isArray(initialValue)) {
         return mergeDefaults(parsedItem, initialValue as T & object);
       }
@@ -56,7 +54,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetState
         if (e.key === key && e.newValue !== JSON.stringify(storedValue)) {
             try {
                 const parsed = e.newValue ? JSON.parse(e.newValue) : initialValue;
-                // FIX: Only merge defaults for objects.
                 if (typeof initialValue === 'object' && initialValue !== null && !Array.isArray(initialValue)) {
                     setStoredValue(mergeDefaults(parsed, initialValue as T & object));
                 } else {
@@ -74,7 +71,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetState
         if (detail.key === key && detail.newValue !== JSON.stringify(storedValue)) {
             try {
                 const parsed = detail.newValue ? JSON.parse(detail.newValue) : initialValue;
-                 // FIX: Only merge defaults for objects.
                 if (typeof initialValue === 'object' && initialValue !== null && !Array.isArray(initialValue)) {
                     setStoredValue(mergeDefaults(parsed, initialValue as T & object));
                 } else {

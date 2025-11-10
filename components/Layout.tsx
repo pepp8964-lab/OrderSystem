@@ -7,6 +7,8 @@ import { Person, Category, ScheduleData, Subdivision } from '../types';
 import DutyRosterModal from '../pages/DutyRosterModal';
 import { useSearch } from '../context/SearchContext';
 import GlobalSearch from './GlobalSearch';
+import HotkeyHelpModal from './HotkeyHelpModal';
+import ContextMenu from './ContextMenu';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,7 +16,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
-  const { isRosterModalOpen, closeRosterModal } = useModal();
+  const { isRosterModalOpen, closeRosterModal, isHotkeyHelpOpen, closeHotkeyHelp, isNotificationsOpen } = useModal();
   const [people] = useLocalStorage<Person[]>('people', []);
   const [categories] = useLocalStorage<Category[]>('categories', []);
   const [schedules] = useLocalStorage<ScheduleData>('schedules', {});
@@ -22,9 +24,9 @@ const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
   const { isSearchOpen } = useSearch();
 
   return (
-    <div className="flex h-screen text-primary-text">
+    <div className="flex h-screen text-primary-text bg-primary">
       <Sidebar openExitModal={openExitModal} />
-      <main className="flex-1 p-6 sm:p-8 md:p-10 overflow-y-auto">
+      <main className={`flex-1 p-6 sm:p-8 md:p-10 overflow-y-auto transition-all duration-300 ${isNotificationsOpen ? 'mr-80' : ''}`}>
         {children}
       </main>
       <Notifications />
@@ -37,7 +39,9 @@ const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
               subdivisions={subdivisions}
           />
       )}
+      {isHotkeyHelpOpen && <HotkeyHelpModal onClose={closeHotkeyHelp} />}
       {isSearchOpen && <GlobalSearch />}
+      <ContextMenu />
     </div>
   );
 };

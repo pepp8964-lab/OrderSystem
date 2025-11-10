@@ -149,23 +149,72 @@ export const useActionLog = () => {
     return context;
 };
 
-
 // Modal Context
+export interface ContextMenuItem {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    className?: string;
+}
+
 interface ModalContextType {
     isRosterModalOpen: boolean;
     openRosterModal: () => void;
     closeRosterModal: () => void;
+    isHotkeyHelpOpen: boolean;
+    openHotkeyHelp: () => void;
+    closeHotkeyHelp: () => void;
+    isNotificationsOpen: boolean;
+    openNotifications: () => void;
+    closeNotifications: () => void;
+    toggleNotifications: () => void;
+    contextMenu: { x: number; y: number; items: ContextMenuItem[] } | null;
+    showContextMenu: (event: React.MouseEvent, items: ContextMenuItem[]) => void;
+    hideContextMenu: () => void;
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
 export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+    const [isHotkeyHelpOpen, setIsHotkeyHelpOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+
     const openRosterModal = useCallback(() => setIsRosterModalOpen(true), []);
     const closeRosterModal = useCallback(() => setIsRosterModalOpen(false), []);
 
+    const openHotkeyHelp = useCallback(() => setIsHotkeyHelpOpen(true), []);
+    const closeHotkeyHelp = useCallback(() => setIsHotkeyHelpOpen(false), []);
+    
+    const openNotifications = useCallback(() => setIsNotificationsOpen(true), []);
+    const closeNotifications = useCallback(() => setIsNotificationsOpen(false), []);
+    const toggleNotifications = useCallback(() => setIsNotificationsOpen(prev => !prev), []);
+
+    const showContextMenu = useCallback((event: React.MouseEvent, items: ContextMenuItem[]) => {
+        event.preventDefault();
+        setContextMenu({ x: event.clientX, y: event.clientY, items });
+    }, []);
+
+    const hideContextMenu = useCallback(() => {
+        setContextMenu(null);
+    }, []);
+
+    const contextValue = useMemo(() => ({
+        isRosterModalOpen, openRosterModal, closeRosterModal,
+        isHotkeyHelpOpen, openHotkeyHelp, closeHotkeyHelp,
+        isNotificationsOpen, openNotifications, closeNotifications, toggleNotifications,
+        contextMenu, showContextMenu, hideContextMenu,
+    }), [
+        isRosterModalOpen, openRosterModal, closeRosterModal,
+        isHotkeyHelpOpen, openHotkeyHelp, closeHotkeyHelp,
+        isNotificationsOpen, openNotifications, closeNotifications, toggleNotifications,
+        contextMenu, showContextMenu, hideContextMenu,
+    ]);
+
+
     return (
-        <ModalContext.Provider value={{ isRosterModalOpen, openRosterModal, closeRosterModal }}>
+        <ModalContext.Provider value={contextValue}>
             {children}
         </ModalContext.Provider>
     );

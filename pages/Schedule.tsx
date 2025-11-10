@@ -963,7 +963,6 @@ const Schedule: React.FC = () => {
         if (!selectedCategory) return;
         setIsForecasting(true);
         try {
-            // FIX: Use new GoogleGenAI client and correct API key sourcing.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const today = new Date();
             
@@ -1142,10 +1141,6 @@ const Schedule: React.FC = () => {
             if (mode === 'all') {
                 delete newSchedules[selectedCategoryId][yearMonth];
             } else { // 'duties'
-// FIX: When iterating over an object that has been cloned via JSON.parse(JSON.stringify(...)),
-// the index signatures can mismatch. The original type for DailyStatus has a number index, but
-// after cloning, the keys are strings. Using Object.keys ensures we iterate over string keys,
-// and casting to Record<string, DutyStatus> allows TypeScript to correctly type-check the access.
                 const monthSchedule = newSchedules[selectedCategoryId][yearMonth];
                 for (const personId of Object.keys(monthSchedule)) {
                     const personSchedule = monthSchedule[personId];
