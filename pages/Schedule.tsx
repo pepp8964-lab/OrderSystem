@@ -801,7 +801,7 @@ const Schedule: React.FC = () => {
                 dutyStats[p.id] = { totalDuties: 0, lastDuty: -daysInFillMonth };
                 Object.values(schedules).forEach(catSchedule => {
                     Object.values(catSchedule).forEach(monthSchedule => {
-                        const personSchedule = monthSchedule[p.id];
+                        const personSchedule = (monthSchedule as MonthlySchedule)[p.id];
                         if (personSchedule) {
                             dutyStats[p.id].totalDuties += Object.values(personSchedule).filter(s => s === DutyStatus.ON_DUTY).length;
                         }
@@ -1100,7 +1100,9 @@ const Schedule: React.FC = () => {
         };
 
         const categorySchedule = schedules[selectedCategoryId] || {};
-        Object.values(categorySchedule).forEach(monthSchedule => {
+        // FIX: Replaced Object.values().forEach() with a for...in loop to avoid potential type inference issues where `monthSchedule` could become `unknown`.
+        for (const monthKey in categorySchedule) {
+            const monthSchedule = categorySchedule[monthKey];
             Object.entries(monthSchedule).forEach(([personId, daySchedule]) => {
                 const person = people.find(p => p.id === personId);
                 if (!person) return;
@@ -1116,7 +1118,7 @@ const Schedule: React.FC = () => {
                     }
                 }
             });
-        });
+        }
         
         if (totalDuties > 0) {
             const rootSubdivisions = subdivisions.filter(s => !s.parentId);

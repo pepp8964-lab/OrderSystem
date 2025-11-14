@@ -1,14 +1,15 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { Person, Category, ScheduleData, Weapon, AllData, Subdivision, CustomWeaponType, AppSettings, DutyStatus } from '../types';
 import { UKRAINIAN_MONTHS } from '../constants';
 import Card from '../components/Card';
-import { UsersIcon, TagIcon, CalendarIcon, UploadIcon, DownloadIcon, DatabaseIcon, FileImportIcon, HistoryIcon, WeaponIcon } from '../components/icons/Icons';
+import { UsersIcon, TagIcon, CalendarIcon, UploadIcon, DownloadIcon, DatabaseIcon, FileImportIcon, HistoryIcon, WeaponIcon, TrashIcon } from '../components/icons/Icons';
 import { useToast, useActionLog } from '../context/ThemeContext';
-import { saveFileToDB, getFileFromDB } from '../utils/db';
+import { saveFileToDB, getFileFromDB, deleteFileFromDB } from '../utils/db';
 import { defaultSettings } from '../utils/defaults';
 import { CHANGELOG_DATA } from './Updates';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 
 declare const XLSX: any;
@@ -92,13 +93,70 @@ const Dashboard: React.FC = () => {
     const [dutyViewDate, setDutyViewDate] = useState<'today' | 'tomorrow'>('today');
 
     const navigate = useNavigate();
-    const { logs } = useActionLog();
+    // FIX: Destructure logAction to make it available in the component.
+    const { logs, logAction } = useActionLog();
 
     const activePeople = useMemo(() => people.filter(p => !p.deletedTimestamp), [people]);
     const activeCategories = useMemo(() => categories.filter(c => !c.deletedTimestamp), [categories]);
     const activeWeapons = useMemo(() => weapons.filter(w => !w.deletedTimestamp), [weapons]);
     const peopleMap = useMemo(() => new Map(activePeople.map(p => [p.id, p])), [activePeople]);
     const { showToast } = useToast();
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dbFileInfo, setDbFileInfo] = useState<{ name: string; uploadedAt: number } | null>(null);
+    const [dbFileMeta, setDbFileMeta] = useLocalStorage<{ uploadedAt: number } | null>('db-file-meta', null);
+    const [isDeletingDb, setIsDeletingDb] = useState(false);
+
+    const loadDbFileInfo = useCallback(async () => {
+        try {
+            const file = await getFileFromDB();
+            if (file && dbFileMeta) {
+                setDbFileInfo({ name: file.name, uploadedAt: dbFileMeta.uploadedAt });
+            } else {
+                setDbFileInfo(null);
+                if (dbFileMeta) setDbFileMeta(null); // Clean up stale metadata
+            }
+        } catch (error) {
+            console.error("Error loading DB file info:", error);
+        }
+    }, [dbFileMeta, setDbFileMeta]);
+
+    useEffect(() => {
+        loadDbFileInfo();
+    }, [loadDbFileInfo]);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            try {
+                await saveFileToDB(file);
+                const uploadedAt = Date.now();
+                setDbFileMeta({ uploadedAt });
+                setDbFileInfo({ name: file.name, uploadedAt });
+                showToast(`Базу даних "${file.name}" успішно оновлено.`);
+                logAction(`Оновлено файл бази даних: ${file.name}`);
+            } catch (error) {
+                showToast("Не вдалося зберегти файл бази даних.");
+                console.error("Failed to save file to DB:", error);
+            } finally {
+                if (e.target) e.target.value = '';
+            }
+        }
+    };
+
+    const confirmDeleteDb = async () => {
+        try {
+            await deleteFileFromDB();
+            setDbFileInfo(null);
+            setDbFileMeta(null);
+            showToast("Кешований файл бази даних видалено.");
+            logAction("Видалено кешований файл бази даних.");
+        } catch (e) {
+            showToast("Помилка видалення файлу.");
+        } finally {
+            setIsDeletingDb(false);
+        }
+    };
 
     const notifications = useMemo(() => {
         const messages: string[] = [];
@@ -254,6 +312,47 @@ const Dashboard: React.FC = () => {
                 </div>
             </div>
             <div className="lg:col-span-1 space-y-6">
+                 <Card title="Файл бази даних">
+                    <div className="space-y-4">
+                        {dbFileInfo ? (
+                            <div className="text-center space-y-3">
+                                <DatabaseIcon className="w-16 h-16 text-accent mx-auto" />
+                                <div>
+                                    <p className="font-semibold text-header truncate" title={dbFileInfo.name}>{dbFileInfo.name}</p>
+                                    <p className="text-xs text-secondary-text">
+                                        Завантажено: {new Date(dbFileInfo.uploadedAt).toLocaleString('uk-UA')}
+                                    </p>
+                                </div>
+                                <div className="flex justify-center gap-2">
+                                     <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="bg-secondary text-primary-text px-4 py-2 rounded-lg hover:bg-primary transition-colors border border-border-color text-sm"
+                                    >
+                                        Замінити
+                                    </button>
+                                    <button
+                                        onClick={() => setIsDeletingDb(true)}
+                                        className="bg-red-900/50 text-red-300 px-4 py-2 rounded-lg hover:bg-red-900/80 transition-colors border border-red-700 text-sm flex items-center gap-2"
+                                    >
+                                        <TrashIcon className="w-4 h-4" /> Видалити
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center space-y-3">
+                                <p className="text-secondary-text">Файл бази даних (.xlsx) не завантажено.</p>
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover transition-colors shadow-md flex items-center gap-2 mx-auto"
+                                >
+                                    <UploadIcon />
+                                    Завантажити файл
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx, .xls" className="hidden" />
+                </Card>
                 <Card title="Відсутній особовий склад">
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                         {absencesForToday.length > 0 ? absencesForToday.map(({person, status}) => (
@@ -273,6 +372,15 @@ const Dashboard: React.FC = () => {
                 </Card>
             </div>
        </div>
+       <ConfirmationModal
+            isOpen={isDeletingDb}
+            onClose={() => setIsDeletingDb(false)}
+            onConfirm={confirmDeleteDb}
+            title="Видалити файл бази даних"
+            message="Ви впевнені, що хочете видалити кешований файл бази даних? Цю дію неможливо буде скасувати."
+            confirmButtonText="Так, видалити"
+            confirmButtonClassName="bg-red-600 hover:bg-red-700"
+        />
     </div>
   );
 };
