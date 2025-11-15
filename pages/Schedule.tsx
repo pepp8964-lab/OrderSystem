@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import useLocalStorage from '../hooks/useLocalStorage';
-import { Person, Category, ScheduleData, AllData, AppSettings, Subdivision } from '../types';
+import { Person, Category, ScheduleData, AllData, AppSettings, Subdivision, MonthlySchedule, DailyStatus } from '../types';
 import { DutyStatus } from '../constants';
 import { UKRAINIAN_MONTHS, DUTY_STATUS_BG_COLORS, DUTY_STATUS_TEXT_COLORS, DUTY_STATUS_FULL_TEXT, DUTY_STATUS_ABBREVIATIONS, UKRAINIAN_WEEKDAYS_SHORT } from '../constants';
 import Card from '../components/Card';
-import { TrashIcon, PrintIcon, XIcon, SaveIcon, LaboratoryIcon, SyncIcon } from '../components/icons/Icons';
+import { TrashIcon, PrintIcon, XIcon, SaveIcon, LaboratoryIcon, SyncIcon, LockOpenIcon, LockClosedIcon, ChevronDownIcon, ChevronRightIcon } from '../components/icons/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast, useActionLog } from '../context/ThemeContext';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -54,6 +54,7 @@ const Schedule: React.FC = () => {
     const [people] = useLocalStorage<Person[]>('people', []);
     const [categories] = useLocalStorage<Category[]>('categories', []);
     const [schedules, setSchedules] = useLocalStorage<ScheduleData>('schedules', {});
+    const [lockedDays, setLockedDays] = useLocalStorage<Record<string, number[]>>('schedule-locked-days', {});
     const [subdivisions] = useLocalStorage<Subdivision[]>('subdivisions', []);
     const { showToast } = useToast();
     const { logAction } = useActionLog();
@@ -69,6 +70,7 @@ const Schedule: React.FC = () => {
     const [autofillAllCategories, setAutofillAllCategories] = useState(false);
     const [autofillMode, setAutofillMode] = useState<'standard' | 'fair'>('standard');
     const [standardDaysToFill, setStandardDaysToFill] = useState<number>(0);
+    const [isUnavailableSectionOpen, setIsUnavailableSectionOpen] = useState(false);
 
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<AnalysisReport | null>(null);
@@ -218,7 +220,7 @@ const Schedule: React.FC = () => {
     }, [schedules, yearMonth, categories]);
 
     const peopleForCategory = useMemo(() => {
-        if (!selectedCategoryId || !selectedCategory) return { active: [], archived: [] };
+        if (!selectedCategoryId || !selectedCategory) return { active: [], unavailable: [], archived: [] };
         
         const peopleMap = new Map(people.map(p => [p.id, p]));
 
@@ -260,7 +262,7 @@ const Schedule: React.FC = () => {
 
         const allPeopleForCategory = people.filter(p => p.categoryIds.includes(selectedCategoryId));
 
-        const active = allPeopleForCategory
+        const activeAndPotentiallyUnavailable = allPeopleForCategory
             .filter(p => !p.deletedTimestamp)
             .map(person => ({ ...person, availableDays: calculateAvailability(person) }))
             .sort((a, b) => {
@@ -269,10 +271,13 @@ const Schedule: React.FC = () => {
                  if (a.availableDays !== b.availableDays) return b.availableDays - a.availableDays;
                  return a.fullName.localeCompare(b.fullName);
             });
+            
+        const active = activeAndPotentiallyUnavailable.filter(p => p.availableDays > 0);
+        const unavailable = activeAndPotentiallyUnavailable.filter(p => p.availableDays === 0);
 
         const archived = allPeopleForCategory.filter(p => p.deletedTimestamp);
 
-        return { active, archived };
+        return { active, unavailable, archived };
 
     }, [people, selectedCategoryId, selectedCategory, schedules, year, month, yearMonth, daysInMonth, allDutiesMap, findDutyOnDay]);
     
@@ -739,6 +744,27 @@ const Schedule: React.FC = () => {
         setIsAutofillModalOpen(true);
     };
 
+    const handleToggleLockDay = (day: number) => {
+        setLockedDays(prev => {
+            const newLockedDays = { ...prev };
+            const monthLocks = newLockedDays[yearMonth] ? [...newLockedDays[yearMonth]] : [];
+            const dayIndex = monthLocks.indexOf(day);
+
+            if (dayIndex > -1) {
+                monthLocks.splice(dayIndex, 1);
+            } else {
+                monthLocks.push(day);
+            }
+
+            if (monthLocks.length > 0) {
+                newLockedDays[yearMonth] = monthLocks;
+            } else {
+                delete newLockedDays[yearMonth];
+            }
+            return newLockedDays;
+        });
+    };
+
     // --- EXPERIMENTAL FEATURES ---
 
     const handleAutofill = async () => {
@@ -1099,25 +1125,26 @@ const Schedule: React.FC = () => {
                 .sort((a, b) => b.rowIndex - a.rowIndex)[0] || null;
         };
 
-        const categorySchedule = schedules[selectedCategoryId] || {};
-        // FIX: Replaced Object.values().forEach() with a for...in loop to avoid potential type inference issues where `monthSchedule` could become `unknown`.
-        for (const monthKey in categorySchedule) {
-            const monthSchedule = categorySchedule[monthKey];
-            Object.entries(monthSchedule).forEach(([personId, daySchedule]) => {
-                const person = people.find(p => p.id === personId);
-                if (!person) return;
-
-                const dutyCount = Object.values(daySchedule).filter(s => s === DutyStatus.ON_DUTY).length;
-                if (dutyCount > 0) {
-                    totalDuties += dutyCount;
-                    const directSub = getDirectSubdivision(person);
-                    let currentSub = directSub;
-                    while (currentSub) {
-                        counts.set(currentSub.id, (counts.get(currentSub.id) || 0) + dutyCount);
-                        currentSub = currentSub.parentId ? subMap.get(currentSub.parentId) : null;
+        const categorySchedule = schedules[selectedCategoryId];
+        if (categorySchedule) {
+            for (const monthKey in categorySchedule) {
+                const monthSchedule = categorySchedule[monthKey];
+                Object.entries(monthSchedule).forEach(([personId, daySchedule]) => {
+                    const person = people.find(p => p.id === personId);
+                    if (!person) return;
+    
+                    const dutyCount = Object.values(daySchedule).filter(s => s === DutyStatus.ON_DUTY).length;
+                    if (dutyCount > 0) {
+                        totalDuties += dutyCount;
+                        const directSub = getDirectSubdivision(person);
+                        let currentSub = directSub;
+                        while (currentSub) {
+                            counts.set(currentSub.id, (counts.get(currentSub.id) || 0) + dutyCount);
+                            currentSub = currentSub.parentId ? subMap.get(currentSub.parentId) : null;
+                        }
                     }
-                }
-            });
+                });
+            }
         }
         
         if (totalDuties > 0) {
@@ -1143,14 +1170,17 @@ const Schedule: React.FC = () => {
             if (mode === 'all') {
                 delete newSchedules[selectedCategoryId][yearMonth];
             } else { // 'duties'
-                const monthSchedule = newSchedules[selectedCategoryId][yearMonth];
+                const monthSchedule: MonthlySchedule = newSchedules[selectedCategoryId][yearMonth];
                 for (const personId of Object.keys(monthSchedule)) {
-                    const personSchedule = monthSchedule[personId];
+                    const personSchedule: DailyStatus = monthSchedule[personId];
                     if (personSchedule) {
+                        // FIX: Resolve TypeScript errors by correctly handling numeric keys.
+                        // `personSchedule` is of type `DailyStatus`, which has a numeric index signature.
+                        // `Object.keys` returns string keys, so we parse them to numbers before indexing.
                         for (const dayStr of Object.keys(personSchedule)) {
-                            const schedule = personSchedule as Record<string, DutyStatus>;
-                            if (schedule[dayStr] === DutyStatus.ON_DUTY) {
-                                delete schedule[dayStr];
+                            const dayNum = parseInt(dayStr, 10);
+                            if (personSchedule[dayNum] === DutyStatus.ON_DUTY) {
+                                delete personSchedule[dayNum];
                             }
                         }
                     }
@@ -1385,8 +1415,12 @@ const Schedule: React.FC = () => {
                                         const date = new Date(year, month, day);
                                         const dayOfWeek = date.getDay();
                                         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                                        const isLocked = (lockedDays[yearMonth] || []).includes(day);
                                         return (
-                                            <th key={day} className={`p-1 border-b border-r border-border-color w-8 ${isWeekend ? 'schedule-weekend-glow' : ''}`}>
+                                            <th key={day} className={`p-1 border-b border-r border-border-color w-8 relative ${isWeekend ? 'schedule-weekend-glow' : ''}`}>
+                                                <button onClick={() => handleToggleLockDay(day)} className="absolute top-0 right-0 p-0.5 text-secondary-text hover:text-accent" title={isLocked ? "Розблокувати день" : "Заблокувати день"}>
+                                                    {isLocked ? <LockClosedIcon className="w-3 h-3"/> : <LockOpenIcon className="w-3 h-3"/>}
+                                                </button>
                                                 <div>{UKRAINIAN_WEEKDAYS_SHORT[dayOfWeek === 0 ? 6 : dayOfWeek - 1]}</div>
                                                 <div>{day}</div>
                                             </th>
@@ -1396,6 +1430,21 @@ const Schedule: React.FC = () => {
                             </thead>
                             <tbody ref={tableBodyRef}>
                                 {renderTableRows(peopleForCategory.active, false)}
+                                
+                                {peopleForCategory.unavailable.length > 0 && (
+                                    <>
+                                        <tr>
+                                            <td colSpan={daysInMonth + 1} className="py-2 bg-secondary text-center text-sm font-semibold text-secondary-text">
+                                                <button onClick={() => setIsUnavailableSectionOpen(prev => !prev)} className="w-full flex items-center justify-center gap-2">
+                                                    {isUnavailableSectionOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                                                    Недоступні цього місяця ({peopleForCategory.unavailable.length})
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {isUnavailableSectionOpen && renderTableRows(peopleForCategory.unavailable, false)}
+                                    </>
+                                )}
+
                                 {showArchivedInSchedule && peopleForCategory.archived.length > 0 && (
                                     <>
                                         <tr>
@@ -1478,40 +1527,58 @@ const Schedule: React.FC = () => {
                              <button onClick={() => runAnalysis('all')} className={`px-3 py-1 text-sm rounded-md ${analysisReport.scope === 'all' ? 'bg-accent text-white' : 'bg-secondary'}`}>За весь час</button>
                         </div>
                         <div className="p-4 space-y-4 overflow-y-auto">
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                <div>
-                                    {analysisReport.fairness && ( <Card title="Розподіл нарядів" className="bg-secondary/50"> <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center"> <div><p className="text-sm text-secondary-text">Всього</p><p className="text-2xl font-bold text-header">{analysisReport.fairness.totalDuties}</p></div> <div><p className="text-sm text-secondary-text">Середнє</p><p className="text-2xl font-bold text-header">{analysisReport.fairness.avgDuties}</p></div> <div><p className="text-sm text-secondary-text">Максимум</p><p className="text-2xl font-bold text-header">{analysisReport.fairness.maxDuties}</p></div> <div><p className="text-sm text-secondary-text">Мінімум</p><p className="text-2xl font-bold text-header">{analysisReport.fairness.minDuties}</p></div> </div> <p className="text-xs text-secondary-text mt-3"><strong>Найбільше:</strong> {analysisReport.fairness.mostFrequent.map(p => p.fullName).join(', ')}</p> <p className="text-xs text-secondary-text"><strong>Найменше:</strong> {analysisReport.fairness.leastFrequent.map(p => p.fullName).join(', ')}</p> </Card> )}
-                                    {analysisReport.restPeriods && ( <Card title="Періоди відпочинку" className="bg-secondary/50 mt-4"> <p>Середній відпочинок: <strong className="text-header">{analysisReport.restPeriods.avgRest} днів</strong></p> {analysisReport.restPeriods.minRest && <p>Мінімальний відпочинок: <strong className="text-red-400">{analysisReport.restPeriods.minRest.days} днів</strong> у <strong className="text-header">{analysisReport.restPeriods.minRest.person.fullName}</strong></p>} </Card> )}
-                                    {analysisReport.weekendDuties && ( <Card title="Наряди у вихідні" className="bg-secondary/50 mt-4"> <ul className="text-sm space-y-1 max-h-32 overflow-y-auto">{analysisReport.weekendDuties.map(item => <li key={item.person.id}>{item.person.fullName}: <strong className="text-header">{item.count}</strong></li>)}</ul> </Card> )}
-                                    {analysisReport.problems.length > 0 && ( <Card title="Проблеми (поточний місяць)" className="bg-secondary/50 mt-4"> {analysisReport.problems.map((f, i) => ( <div key={i} className={`p-2 rounded-md border ${f.level === 'warning' ? 'bg-yellow-900/50 border-yellow-700 text-yellow-300' : 'bg-blue-900/50 border-blue-700 text-blue-300'}`}> <strong>{f.day} число:</strong> {f.message} </div> ))} </Card> )}
-                                </div>
-                                <div>
-                                    {settings.experimentalFeatures.improvedDutyForecastEnabled && (
-                                        <Card title="Прогноз від AI" className="bg-secondary/50">
-                                            {isForecasting && <p className="text-secondary-text text-center">AI аналізує графік...</p>}
-                                            {!isForecasting && !analysisReport.suggestions && <p className="text-secondary-text text-center">Прогноз не було згенеровано.</p>}
-                                            {analysisReport.suggestions && (
-                                                <div className="space-y-2">
-                                                    {analysisReport.suggestions.length > 0 ? (
-                                                        <>
-                                                            <div className="max-h-80 overflow-y-auto space-y-2">
-                                                                {analysisReport.suggestions.map((s, i) => (
-                                                                    <div key={i} className="p-2 bg-primary rounded-md border border-border-color text-sm">
-                                                                        <p className="font-bold text-header">День {s.day}: {s.action === 'ADD' ? 'Додати' : 'Замінити'}</p>
-                                                                        <p className="text-primary-text">{s.action === 'REPLACE' ? `${s.personToRemove} → ${s.personToAdd}` : s.personToAdd}</p>
-                                                                        <p className="text-xs text-secondary-text italic">Причина: {s.reason}</p>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <button onClick={applyForecast} className="w-full bg-accent text-white font-bold px-3 py-1.5 rounded-lg hover:bg-accent-hover shadow-lg mt-2">Застосувати пропозиції</button>
-                                                        </>
-                                                    ) : <p className="text-secondary-text text-center">Пропозицій від AI немає.</p>}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {analysisReport.problems.length > 0 && (
+                                    <Card title="Проблеми" className="bg-secondary/50">
+                                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            {analysisReport.problems.map((p, i) => <p key={i} className="text-sm text-yellow-300">День {p.day}: {p.message}</p>)}
+                                        </div>
+                                    </Card>
+                                )}
+                                {analysisReport.fairness && (
+                                     <Card title="Справедливість" className="bg-secondary/50">
+                                        <div className="text-sm space-y-1">
+                                            <p>Всього нарядів: <strong className="text-header">{analysisReport.fairness.totalDuties}</strong></p>
+                                            <p>Середнє: <strong className="text-header">{analysisReport.fairness.avgDuties}</strong></p>
+                                            <p>Найбільше: <strong className="text-header">{analysisReport.fairness.maxDuties}</strong> ({analysisReport.fairness.mostFrequent.map(p=>p.fullName).join(', ')})</p>
+                                            <p>Найменше: <strong className="text-header">{analysisReport.fairness.minDuties}</strong> ({analysisReport.fairness.leastFrequent.map(p=>p.fullName).join(', ')})</p>
+                                        </div>
+                                    </Card>
+                                )}
+                                {analysisReport.restPeriods && (
+                                    <Card title="Відпочинок" className="bg-secondary/50">
+                                        <div className="text-sm space-y-1">
+                                            <p>Середній: <strong className="text-header">{analysisReport.restPeriods.avgRest} днів</strong></p>
+                                            {analysisReport.restPeriods.minRest && <p>Найменший: <strong className="text-header">{analysisReport.restPeriods.minRest.days} днів</strong> ({analysisReport.restPeriods.minRest.person.fullName})</p>}
+                                        </div>
+                                    </Card>
+                                )}
+                            </div>
+                            {analysisReport.suggestions && (
+                                <Card title={isForecasting ? "AI генерує пропозиції..." : "Пропозиції AI"} className="bg-secondary/50">
+                                    {isForecasting ? (
+                                        <div className="text-center text-secondary-text">Будь ласка, зачекайте...</div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                                                {analysisReport.suggestions.map((s, i) => (
+                                                    <div key={i} className="text-sm flex gap-2 items-start">
+                                                        <strong className="text-header w-12">День {s.day}:</strong>
+                                                        <span className="flex-grow">{s.action === 'ADD' ? `Додати ${s.personToAdd}` : `Замінити ${s.personToRemove} на ${s.personToAdd}`}</span>
+                                                        <span className="text-xs text-secondary-text">({s.reason})</span>
+                                                    </div>
+                                                ))}
+                                                 {analysisReport.suggestions.length === 0 && <p className="text-secondary-text text-center">Пропозицій не знайдено.</p>}
+                                            </div>
+                                            {analysisReport.suggestions.length > 0 && 
+                                                <div className="text-center mt-4">
+                                                    <button onClick={applyForecast} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover">Застосувати пропозиції</button>
                                                 </div>
-                                            )}
-                                        </Card>
+                                            }
+                                        </>
                                     )}
-                                </div>
-                           </div>
+                                </Card>
+                            )}
                         </div>
                         <div className="flex justify-end p-4 border-t border-border-color">
                             <button onClick={() => setIsAnalysisModalOpen(false)} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color">Закрити</button>
@@ -1519,7 +1586,7 @@ const Schedule: React.FC = () => {
                     </div>
                 </div>
             )}
-            
+
             {isTrendModalOpen && (
                  <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
                     <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-lg">
@@ -1527,61 +1594,38 @@ const Schedule: React.FC = () => {
                         <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
                             {trendReport ? (
                                 <>
-                                    <p className="text-secondary-text">Проаналізовано <strong className="text-header">{trendReport.totalDuties}</strong> нарядів за весь час.</p>
-                                    {trendReport.structuredCounts.map(item => (
-                                        <div key={item.subdivision.id} className="bg-secondary p-2 rounded-md">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="font-bold text-primary-text">{item.subdivision.name}</span>
-                                                <span className="text-sm text-secondary-text">{item.count} ({item.percentage}%)</span>
-                                            </div>
-                                            <div className="w-full bg-primary rounded-full h-2.5"><div className="bg-accent h-2.5 rounded-full" style={{width: `${item.percentage}%`}}></div></div>
+                                 <p className="text-secondary-text text-center">Загальна кількість нарядів: <strong className="text-header">{trendReport.totalDuties}</strong></p>
+                                {trendReport.structuredCounts.map(item => (
+                                    <div key={item.subdivision.id} className="bg-secondary p-2 rounded-md">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="font-semibold text-primary-text">{item.subdivision.name}</span>
+                                            <span className="font-bold text-header">{item.count} ({item.percentage}%)</span>
                                         </div>
-                                    ))}
-                                    {trendReport.structuredCounts.length > 0 && (
-                                        <div className="text-sm mt-3 p-2 bg-primary rounded-md border border-border-color">
-                                            <p><strong>Прогноз:</strong></p>
-                                            <p>Найбільше залучався особовий склад з підрозділу <strong className="text-accent">{trendReport.structuredCounts[0].subdivision.name}</strong>.</p>
-                                            {trendReport.structuredCounts.length > 1 && <p>Для вирівнювання навантаження, рекомендується частіше залучати особовий склад з <strong className="text-accent">{trendReport.structuredCounts[trendReport.structuredCounts.length - 1].subdivision.name}</strong>.</p>}
+                                        <div className="w-full bg-primary rounded-full h-2.5 mt-1">
+                                            <div className="bg-accent h-2.5 rounded-full" style={{ width: `${item.percentage}%` }}></div>
                                         </div>
-                                    )}
+                                    </div>
+                                ))}
                                 </>
-                            ) : <p className="text-secondary-text text-center">Немає даних для аналізу тенденцій по цій категорії.</p>}
+                            ) : <p className="text-secondary-text text-center">Немає даних для аналізу.</p>}
                         </div>
-                        <div className="flex justify-end p-4 border-t border-border-color">
-                            <button onClick={() => setIsTrendModalOpen(false)} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color">Закрити</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isClearMonthModalOpen && (
-                 <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-                    <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-lg">
-                        <div className="p-4 border-b border-border-color"><h2 className="text-xl font-bold text-header">Очистити графік на місяць?</h2></div>
-                        <div className="p-4 space-y-4">
-                            <p className="text-primary-text">Виберіть, що саме ви хочете очистити для категорії <strong className="text-header">{selectedCategory?.name}</strong> за <strong className="text-header">{UKRAINIAN_MONTHS[month]} {year}</strong>.</p>
-                             <div className="flex flex-col gap-2">
-                                <button onClick={() => handleClearMonth('duties')} className="w-full text-left bg-secondary p-3 rounded-md hover:bg-primary transition-colors border border-border-color">
-                                    <p className="font-semibold text-primary-text">Очистити тільки наряди</p>
-                                    <p className="text-sm text-secondary-text">Відпустки, лікарняні та інші статуси залишаться.</p>
-                                </button>
-                                 <button onClick={() => handleClearMonth('all')} className="w-full text-left bg-red-900/50 p-3 rounded-md hover:bg-red-900/80 transition-colors border border-red-700">
-                                    <p className="font-semibold text-red-300">Очистити все</p>
-                                    <p className="text-sm text-red-400">Будуть видалені всі статуси (наряди, відпустки і т.д.) за цей місяць.</p>
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex justify-end p-4 border-t border-border-color">
-                            <button onClick={() => setIsClearMonthModalOpen(false)} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color">Скасувати</button>
-                        </div>
+                        <div className="flex justify-end p-4 border-t border-border-color"><button onClick={() => setIsTrendModalOpen(false)} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color">Закрити</button></div>
                     </div>
                 </div>
             )}
             
-            <ConfirmationModal isOpen={!!clearingInfo} onClose={() => setClearingInfo(null)} onConfirm={handleConfirmClear} title="Очистити статус" message={<>Ви впевнені, що хочете очистити статус для цього дня? Якщо це частина діапазону (напр. відпустка), буде очищено весь діапазон.</>} confirmButtonText="Так, очистити" />
-            <ConfirmationModal isOpen={!!replacementInfo} onClose={() => setReplacementInfo(null)} onConfirm={handleConfirmReplacement} title="Заміна в наряді" message={<>Натисніть на іншу вільну особу в цей день, щоб виконати заміну.</>} confirmButtonText="Почати заміну" />
-            <ConfirmationModal isOpen={!!pendingRangeUpdate} onClose={() => setPendingRangeUpdate(null)} onConfirm={handleConfirmOverwrite} title="Перезаписати статус?" message={<>Вибраний діапазон містить дні з іншим статусом. Ви впевнені, що хочете їх перезаписати?</>} confirmButtonText="Так, перезаписати" />
-
+            <ConfirmationModal isOpen={isClearMonthModalOpen} onClose={() => setIsClearMonthModalOpen(false)} onConfirm={() => handleClearMonth('duties')} title={`Очистити графік "${selectedCategory?.shortName}"?`}
+                message={<>
+                    <p>Виберіть, що саме ви хочете очистити:</p>
+                    <div className="flex justify-around mt-4">
+                         <button onClick={() => handleClearMonth('duties')} className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700">Тільки наряди</button>
+                         <button onClick={() => handleClearMonth('all')} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Все (з відпустками і т.д.)</button>
+                    </div>
+                </>} confirmButtonText="" confirmButtonClassName="hidden" 
+            />
+            <ConfirmationModal isOpen={!!clearingInfo} onClose={() => setClearingInfo(null)} onConfirm={handleConfirmClear} title="Очистити статус?" message="Ви впевнені, що хочете видалити цей статус?" />
+            <ConfirmationModal isOpen={!!replacementInfo} onClose={() => setReplacementInfo(null)} onConfirm={handleConfirmReplacement} title="Заміна в наряді" message="Виберіть особу, яка має замінити поточну." confirmButtonText="Продовжити" confirmButtonClassName="bg-accent hover:bg-accent-hover"/>
+            <ConfirmationModal isOpen={!!pendingRangeUpdate} onClose={() => setPendingRangeUpdate(null)} onConfirm={handleConfirmOverwrite} title="Конфлікт статусів" message="Цей діапазон перекриває існуючі статуси. Бажаєте перезаписати їх?" confirmButtonText="Так, перезаписати" confirmButtonClassName="bg-yellow-600 hover:bg-yellow-700" />
         </div>
     );
 };

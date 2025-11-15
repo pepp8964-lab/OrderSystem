@@ -8,7 +8,7 @@ import { UsersIcon, TagIcon, CalendarIcon, UploadIcon, DownloadIcon, DatabaseIco
 import { useToast, useActionLog } from '../context/ThemeContext';
 import { saveFileToDB, getFileFromDB, deleteFileFromDB } from '../utils/db';
 import { defaultSettings } from '../utils/defaults';
-import { CHANGELOG_DATA } from './Updates';
+import useNotifications from '../hooks/useNotifications';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 
@@ -93,7 +93,6 @@ const Dashboard: React.FC = () => {
     const [dutyViewDate, setDutyViewDate] = useState<'today' | 'tomorrow'>('today');
 
     const navigate = useNavigate();
-    // FIX: Destructure logAction to make it available in the component.
     const { logs, logAction } = useActionLog();
 
     const activePeople = useMemo(() => people.filter(p => !p.deletedTimestamp), [people]);
@@ -101,6 +100,7 @@ const Dashboard: React.FC = () => {
     const activeWeapons = useMemo(() => weapons.filter(w => !w.deletedTimestamp), [weapons]);
     const peopleMap = useMemo(() => new Map(activePeople.map(p => [p.id, p])), [activePeople]);
     const { showToast } = useToast();
+    const { groupedNotifications } = useNotifications();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [dbFileInfo, setDbFileInfo] = useState<{ name: string; uploadedAt: number } | null>(null);
@@ -158,23 +158,13 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    const notifications = useMemo(() => {
-        const messages: string[] = [];
-        const currentVersion = CHANGELOG_DATA[0]?.version;
-        const lastVersionSeen = localStorage.getItem('last-version-seen');
-        if (currentVersion && currentVersion !== lastVersionSeen) {
-            messages.push(`Доступна нова версія ${currentVersion}!`);
-        }
-        const newPeopleCount = activePeople.filter(p => p.isNew).length;
-        if (newPeopleCount > 0) {
-            messages.push(`Є ${newPeopleCount} нових ос., що потребують погодження.`);
-        }
-        const unrecognizedRankCount = activePeople.filter(p => !p.rankCategory && !p.isNew).length;
-        if (unrecognizedRankCount > 0) {
-            messages.push(`${unrecognizedRankCount} ос. мають нерозпізнане звання.`);
-        }
-        return messages;
-    }, [activePeople]);
+    const problemNotifications = useMemo(() => {
+        const critical: string[] = [];
+        groupedNotifications.person.forEach(n => critical.push(n.text));
+        groupedNotifications.schedule.forEach(n => critical.push(n.text));
+        groupedNotifications.weapon.forEach(n => critical.push(n.text));
+        return critical;
+    }, [groupedNotifications]);
 
     const stats = useMemo(() => ({
         people: activePeople.length,
@@ -365,7 +355,7 @@ const Dashboard: React.FC = () => {
                 </Card>
                  <Card title="Проблемні зони">
                     <div className="space-y-2 max-h-64 overflow-y-auto">
-                         {notifications.length > 0 ? notifications.map((notif, i) => (
+                         {problemNotifications.length > 0 ? problemNotifications.map((notif, i) => (
                             <div key={i} className="text-sm text-yellow-300 bg-yellow-900/50 p-2 rounded-md border border-yellow-700">{notif}</div>
                          )) : <p className="text-secondary-text text-center text-sm py-4">Проблем не виявлено.</p>}
                     </div>

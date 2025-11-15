@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, UsersIcon, TagIcon, CalendarIcon, MenuIcon, WeaponIcon, HistoryIcon, SettingsIcon, StructureIcon, BellIcon, LaboratoryIcon, ExitIcon, SearchIcon, QuestionMarkCircleIcon } from './icons/Icons';
+import { HomeIcon, UsersIcon, TagIcon, CalendarIcon, MenuIcon, WeaponIcon, HistoryIcon, SettingsIcon, StructureIcon, BellIcon, LaboratoryIcon, ExitIcon, SearchIcon, QuestionMarkCircleIcon, DownloadIcon, UploadIcon } from './icons/Icons';
 import { useModal } from '../context/ThemeContext';
 import { useSearch } from '../context/SearchContext';
 import useNotifications from '../hooks/useNotifications';
@@ -11,7 +11,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { openRosterModal, openHotkeyHelp, toggleNotifications, isNotificationsOpen } = useModal();
+  const { openRosterModal, openHotkeyHelp, toggleNotifications, isNotificationsOpen, openImportExportModal } = useModal();
   const { searchQuery, setSearchQuery, setIsSearchOpen } = useSearch();
   const searchRef = useRef<HTMLInputElement>(null);
   const { totalNotifications } = useNotifications();
@@ -68,14 +68,22 @@ const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
                 <h1 className="text-white text-4xl font-bold tracking-wider">СОН</h1>
                 <p className="text-secondary-text text-xs tracking-widest">Система обліку нарядів</p>
             </button>
-            <button onClick={toggleNotifications} className={`p-3 rounded-full relative transition-colors ${isNotificationsOpen ? 'bg-accent text-white' : 'text-gray-200 hover:bg-accent'}`}>
-                <BellIcon />
-                {totalNotifications > 0 && (
-                    <span className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full border-2 border-sidebar">
-                        {totalNotifications}
-                    </span>
-                )}
-            </button>
+             <div className="flex items-center gap-1">
+                <button onClick={() => openImportExportModal('export')} className={`p-3 rounded-full relative transition-colors text-gray-200 hover:bg-accent`} title="Експорт">
+                    <DownloadIcon />
+                </button>
+                <button onClick={() => openImportExportModal('import')} className={`p-3 rounded-full relative transition-colors text-gray-200 hover:bg-accent`} title="Імпорт">
+                    <UploadIcon />
+                </button>
+                <button onClick={toggleNotifications} className={`p-3 rounded-full relative transition-colors ${isNotificationsOpen ? 'bg-accent text-white' : 'text-gray-200 hover:bg-accent'}`}>
+                    <BellIcon />
+                    {totalNotifications > 0 && (
+                        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full border-2 border-sidebar">
+                            {totalNotifications}
+                        </span>
+                    )}
+                </button>
+            </div>
           </div>
           <div className="relative mb-6">
               <SearchIcon className="w-5 h-5 absolute top-1/2 -translate-y-1/2 left-3 text-secondary-text pointer-events-none" />

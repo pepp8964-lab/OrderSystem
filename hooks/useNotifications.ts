@@ -22,6 +22,7 @@ const useNotifications = () => {
     const [schedules] = useLocalStorage<ScheduleData>('schedules', {});
     const [weapons] = useLocalStorage<Weapon[]>('weapons', []);
     const [lastVersionSeen, setLastVersionSeen] = useLocalStorage('last-version-seen', '');
+    const [lockedDays] = useLocalStorage<Record<string, number[]>>('schedule-locked-days', {});
 
     const notifications = useMemo(() => {
         const messages: Notification[] = [];
@@ -84,6 +85,7 @@ const useNotifications = () => {
                 const monthNum = today.getMonth() + 1;
                 const yearMonth = `${year}-${String(monthNum).padStart(2, '0')}`;
                 const daysInMonth = new Date(year, monthNum, 0).getDate();
+                const lockedDaysForMonth = lockedDays[yearMonth] || [];
                 
                 const dailyDutyAssignments = new Map<number, {personId: string, categoryName: string}[]>();
 
@@ -143,7 +145,7 @@ const useNotifications = () => {
                             }
                         });
 
-                        if (dutyCount < category.dutySize) {
+                        if (dutyCount < category.dutySize && !lockedDaysForMonth.includes(day)) {
                             problematicDays.push(day);
                         }
                     }
@@ -159,7 +161,7 @@ const useNotifications = () => {
             console.error("Fatal error during notification generation:", e);
             return [{ text: 'Помилка при перевірці сповіщень.', link: '/', type: 'person' }];
         }
-    }, [people, categories, schedules, weapons, lastVersionSeen]);
+    }, [people, categories, schedules, weapons, lastVersionSeen, lockedDays]);
     
     const groupedNotifications = useMemo(() => {
         return notifications.reduce((acc, notif) => {

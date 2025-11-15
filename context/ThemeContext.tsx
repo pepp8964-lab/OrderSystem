@@ -161,6 +161,10 @@ interface ModalContextType {
     isRosterModalOpen: boolean;
     openRosterModal: () => void;
     closeRosterModal: () => void;
+    isImportExportModalOpen: boolean;
+    importExportModalMode: 'import' | 'export';
+    openImportExportModal: (mode: 'import' | 'export') => void;
+    closeImportExportModal: () => void;
     isHotkeyHelpOpen: boolean;
     openHotkeyHelp: () => void;
     closeHotkeyHelp: () => void;
@@ -177,12 +181,20 @@ const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
 export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+    const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
+    const [importExportModalMode, setImportExportModalMode] = useState<'import' | 'export'>('import');
     const [isHotkeyHelpOpen, setIsHotkeyHelpOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
 
     const openRosterModal = useCallback(() => setIsRosterModalOpen(true), []);
     const closeRosterModal = useCallback(() => setIsRosterModalOpen(false), []);
+
+    const openImportExportModal = useCallback((mode: 'import' | 'export') => {
+        setImportExportModalMode(mode);
+        setIsImportExportModalOpen(true);
+    }, []);
+    const closeImportExportModal = useCallback(() => setIsImportExportModalOpen(false), []);
 
     const openHotkeyHelp = useCallback(() => setIsHotkeyHelpOpen(true), []);
     const closeHotkeyHelp = useCallback(() => setIsHotkeyHelpOpen(false), []);
@@ -202,11 +214,13 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const contextValue = useMemo(() => ({
         isRosterModalOpen, openRosterModal, closeRosterModal,
+        isImportExportModalOpen, importExportModalMode, openImportExportModal, closeImportExportModal,
         isHotkeyHelpOpen, openHotkeyHelp, closeHotkeyHelp,
         isNotificationsOpen, openNotifications, closeNotifications, toggleNotifications,
         contextMenu, showContextMenu, hideContextMenu,
     }), [
         isRosterModalOpen, openRosterModal, closeRosterModal,
+        isImportExportModalOpen, importExportModalMode, openImportExportModal, closeImportExportModal,
         isHotkeyHelpOpen, openHotkeyHelp, closeHotkeyHelp,
         isNotificationsOpen, openNotifications, closeNotifications, toggleNotifications,
         contextMenu, showContextMenu, hideContextMenu,

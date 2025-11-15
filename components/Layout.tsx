@@ -9,6 +9,7 @@ import { useSearch } from '../context/SearchContext';
 import GlobalSearch from './GlobalSearch';
 import HotkeyHelpModal from './HotkeyHelpModal';
 import ContextMenu from './ContextMenu';
+import ImportExportModal from './ImportExportModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
-  const { isRosterModalOpen, closeRosterModal, isHotkeyHelpOpen, closeHotkeyHelp, isNotificationsOpen } = useModal();
+  const { isRosterModalOpen, closeRosterModal, isHotkeyHelpOpen, closeHotkeyHelp, isNotificationsOpen, isImportExportModalOpen, closeImportExportModal, importExportModalMode } = useModal();
   const [people] = useLocalStorage<Person[]>('people', []);
   const [categories] = useLocalStorage<Category[]>('categories', []);
   const [schedules] = useLocalStorage<ScheduleData>('schedules', {});
@@ -30,6 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
         {children}
       </main>
       <Notifications />
+       {isImportExportModalOpen && <ImportExportModal initialMode={importExportModalMode} onClose={closeImportExportModal} />}
        {isRosterModalOpen && (
           <DutyRosterModal
               onClose={closeRosterModal}
