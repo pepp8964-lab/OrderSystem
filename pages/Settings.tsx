@@ -12,22 +12,23 @@ const Settings: React.FC = () => {
     const { showToast } = useToast();
 
     const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
+        const { name, value } = e.target;
         
         setSettings(prev => {
             const keys = name.split('.');
             if (keys.length > 1) {
+                const isNumberValue = (e.target as HTMLInputElement).type === 'range' || e.target.tagName === 'SELECT';
                 return {
                     ...prev,
                     [keys[0]]: {
                         ...(prev as any)[keys[0]],
-                        [keys[1]]: (e.target as HTMLInputElement).type === 'number' ? parseFloat(value) : value
+                        [keys[1]]: isNumberValue ? parseInt(value, 10) : value
                     }
                 };
             }
             return {
                 ...prev,
-                [name]: type === 'number' ? parseInt(value, 10) : value,
+                [name]: (e.target as HTMLInputElement).type === 'number' ? parseInt(value, 10) : value,
             };
         });
         showToast("Налаштування збережено.");
@@ -119,8 +120,23 @@ const Settings: React.FC = () => {
                         </select>
                     </div>
                     <div>
-                         <label htmlFor="fontSize" className="block text-sm font-medium text-primary-text mb-2">Розмір шрифту: {settings.fontSettings.fontSize}px</label>
-                         <input type="range" id="fontSize" name="fontSettings.fontSize" min="12" max="20" value={settings.fontSettings.fontSize} onChange={handleSettingsChange} className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer" />
+                        <label htmlFor="fontSize" className="block text-sm font-medium text-primary-text mb-2">Розмір шрифту</label>
+                        <select
+                            id="fontSize"
+                            name="fontSettings.fontSize"
+                            value={settings.fontSettings.fontSize}
+                            onChange={handleSettingsChange}
+                            className="w-full bg-secondary p-2 rounded-md border border-border-color"
+                        >
+                            <option value="8">8px</option>
+                            <option value="10">10px</option>
+                            <option value="12">12px</option>
+                            <option value="13">13px</option>
+                            <option value="14">14px</option>
+                            <option value="16">16px</option>
+                            <option value="18">18px</option>
+                            <option value="20">20px</option>
+                        </select>
                     </div>
                     <div>
                         <label htmlFor="textColor" className="block text-sm font-medium text-primary-text mb-2">Колір основного тексту</label>

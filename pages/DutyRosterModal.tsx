@@ -4,6 +4,11 @@ import { ChevronLeftIcon, ChevronRightIcon, PrintIcon, CopyIcon, PhoneIcon } fro
 import useLocalStorage from '../hooks/useLocalStorage';
 import { useToast } from '../context/ThemeContext';
 import { formatHierarchicalPositionForRoster } from './People';
+import { UKRAINIAN_MONTHS_GENITIVE } from '../constants';
+import * as docx from 'docx';
+
+// FileSaver library is available globally from index.html
+declare const saveAs: any;
 
 interface DutyRosterModalProps {
     onClose: () => void;
@@ -16,9 +21,15 @@ interface DutyRosterModalProps {
 const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, categories, schedules, subdivisions }) => {
     const [viewDate, setViewDate] = useState(new Date());
     const [weaponGroupOverrides, setWeaponGroupOverrides] = useLocalStorage<Record<string, Record<string, number>>>('weapon-group-overrides', {});
-    const [rosterView, setRosterView] = useState<'daily' | 'weekly-text'>('daily');
+    const [activeTab, setActiveTab] = useState<'daily' | 'weekly-text' | 'order'>('daily');
     const { showToast } = useToast();
     
+    // --- State for "Наказ" tab ---
+    const [showOrderForm, setShowOrderForm] = useState(false);
+    const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+    const [lastOrderNumber, setLastOrderNumber] = useLocalStorage<number>('last-order-number', 0);
+    const [orderNumber, setOrderNumber] = useState(lastOrderNumber + 1);
+
     const getWeekTuesdayDate = (d: Date) => {
         const date = new Date(d);
         const day = date.getDay(); // Sun: 0, Mon: 1, Tue: 2, ...
@@ -293,16 +304,116 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
             showToast("Не вдалося скопіювати текст.");
         });
     };
+    
+    const handleGenerateAndDownloadOrder = () => {
+        const date = new Date(orderDate + 'T00:00:00');
+        const dutiesForOrderDate = getDutiesForDate(date);
+
+        if (dutiesForOrderDate.length === 0) {
+            showToast("На обрану дату немає нарядів для формування наказу.");
+            return;
+        }
+
+        const categoryMap = new Map(activeCategories.map(c => [c.id, c]));
+        const grouped = new Map<string, { parent: Category; duties: { person: Person; category: Category, weapon: Weapon | null }[] }>();
+        dutiesForOrderDate.forEach(({ person, category }) => {
+            let parent = category.parentId ? categoryMap.get(category.parentId) : category;
+             if (parent && !parent.deletedTimestamp) {
+                if (!grouped.has(parent.id)) {
+                    grouped.set(parent.id, { parent, duties: [] });
+                }
+                const weapon = getWeaponForPersonOnDuty(person, category, date);
+                grouped.get(parent.id)!.duties.push({ person, category, weapon });
+            }
+        });
+        const groupedDutiesForOrder = Array.from(grouped.values()).sort((a, b) => a.parent.order - b.parent.order);
+
+        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+
+        const sections: any[] = [];
+        
+        sections.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: "НАКАЗ", bold: true, size: 28 })],
+            spacing: { after: 300 }
+        }));
+        
+        const d = new Date(orderDate);
+        const formattedDate = `«${d.getDate()}» ${UKRAINIAN_MONTHS_GENITIVE[d.getMonth()]} ${d.getFullYear()} року`;
+
+        sections.push(new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({ text: formattedDate, size: 24 })],
+            spacing: { after: 100 }
+        }));
+        sections.push(new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({ text: `№ ${orderNumber}`, size: 24 })],
+            spacing: { after: 600 }
+        }));
+
+        groupedDutiesForOrder.forEach(({ parent, duties }) => {
+            sections.push(new Paragraph({
+                children: [new TextRun({ text: (parent.groupName || parent.name).toUpperCase(), bold: true, size: 24 })],
+                spacing: { before: 400, after: 200 }
+            }));
+
+            const headerRow = new TableRow({
+                children: [
+                    new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "#", bold: true})] })] }),
+                    new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Звання та ПІБ", bold: true})] })] }),
+                    new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Посада", bold: true})] })] }),
+                    new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Зброя", bold: true})] })] }),
+                    new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Патрони", bold: true})] })] }),
+                ]
+            });
+            
+            const dataRows = duties.map(({ person, category, weapon }, index) => {
+                const fullName = `${person.lastName || ''} ${person.firstName || ''} ${person.patronymic || ''}`.trim();
+                const fullPosition = formatHierarchicalPositionForRoster(person, subdivisions).toLowerCase();
+                const ammoCount = weapon && category.weaponAssignment?.ammoCount;
+                const ammoType = weapon && category.weaponAssignment?.ammoType;
+
+                return new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph(`${index + 1}`)] }),
+                        new TableCell({ children: [new Paragraph(`${person.rank.toLowerCase()} ${fullName}`)] }),
+                        new TableCell({ children: [new Paragraph(fullPosition)] }),
+                        new TableCell({ children: [new Paragraph(weapon ? `${weapon.type} №${weapon.serialNumber}` : 'Без зброї')] }),
+                        new TableCell({ children: [new Paragraph(ammoCount ? `${ammoCount} (${ammoType})` : '-')] }),
+                    ]
+                });
+            });
+
+            const table = new Table({
+                rows: [headerRow, ...dataRows],
+                width: { size: 100, type: WidthType.PERCENTAGE }
+            });
+
+            sections.push(table);
+        });
+
+        const doc = new Document({ sections: [{ children: sections }] });
+
+        Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `${orderDate}_№${orderNumber}.docx`);
+            showToast("Формування наказу завершено.");
+            setLastOrderNumber(orderNumber);
+            setShowOrderForm(false);
+            onClose();
+        });
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
             <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="flex border-b border-border-color px-2">
-                    <button onClick={() => setRosterView('daily')} className={`px-4 py-3 text-sm font-medium transition-colors ${rosterView === 'daily' ? 'border-b-2 border-accent text-header' : 'text-secondary-text hover:text-primary-text'}`}>Добовий наряд</button>
-                    <button onClick={() => setRosterView('weekly-text')} className={`px-4 py-3 text-sm font-medium transition-colors ${rosterView === 'weekly-text' ? 'border-b-2 border-accent text-header' : 'text-secondary-text hover:text-primary-text'}`}>Текст на тиждень</button>
+                    <button onClick={() => setActiveTab('daily')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'daily' ? 'border-b-2 border-accent text-header' : 'text-secondary-text hover:text-primary-text'}`}>Добовий наряд</button>
+                    <button onClick={() => setActiveTab('weekly-text')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'weekly-text' ? 'border-b-2 border-accent text-header' : 'text-secondary-text hover:text-primary-text'}`}>Текст на тиждень</button>
+                    <button onClick={() => setActiveTab('order')} className={`px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'order' ? 'border-b-2 border-accent text-header' : 'text-secondary-text hover:text-primary-text'}`}>Наказ</button>
                 </div>
                
-                {rosterView === 'daily' && (
+                {activeTab === 'daily' && (
                     <>
                         <div className="p-4 border-b border-border-color flex justify-between items-center">
                             <h2 className="text-xl font-bold text-header">Добовий наряд</h2>
@@ -360,7 +471,7 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
                     </>
                 )}
 
-                {rosterView === 'weekly-text' && (
+                {activeTab === 'weekly-text' && (
                     <>
                          <div className="p-4 border-b border-border-color flex justify-between items-center">
                             <h2 className="text-xl font-bold text-header">Наряд на тиждень</h2>
@@ -382,6 +493,36 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
                             />
                         </div>
                     </>
+                )}
+
+                {activeTab === 'order' && (
+                    <div className="p-6 flex-grow flex flex-col justify-center items-center">
+                        {!showOrderForm ? (
+                             <button onClick={() => { setShowOrderForm(true); setOrderNumber(lastOrderNumber + 1); }} className="bg-accent text-white px-6 py-3 rounded-lg hover:bg-accent-hover transition-colors shadow-lg text-lg font-semibold">
+                                Сформувати наказ
+                            </button>
+                        ) : (
+                            <div className="w-full max-w-sm space-y-4 bg-secondary p-6 rounded-lg border border-border-color">
+                                <h3 className="text-lg font-bold text-header text-center">Параметри наказу</h3>
+                                <div>
+                                    <label htmlFor="order-date" className="block text-sm font-medium text-secondary-text mb-1">Дата наказу</label>
+                                    <input type="date" id="order-date" value={orderDate} onChange={e => setOrderDate(e.target.value)} className="w-full bg-primary p-2 rounded-md border border-border-color" />
+                                </div>
+                                <div>
+                                    <label htmlFor="order-number" className="block text-sm font-medium text-secondary-text mb-1">Номер наказу</label>
+                                    <input type="number" id="order-number" value={orderNumber} onChange={e => setOrderNumber(parseInt(e.target.value, 10))} className="w-full bg-primary p-2 rounded-md border border-border-color" />
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                     <button onClick={() => setShowOrderForm(false)} className="w-full bg-primary text-primary-text px-4 py-2 rounded-lg hover:bg-secondary transition-colors border border-border-color">
+                                        Скасувати
+                                    </button>
+                                    <button onClick={handleGenerateAndDownloadOrder} className="w-full bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover transition-colors">
+                                        Сформувати
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
                  <div className="flex justify-end p-4 border-t border-border-color">
                     <button onClick={onClose} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary transition-colors border border-border-color">Закрити</button>
