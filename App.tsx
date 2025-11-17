@@ -100,8 +100,8 @@ const StartupScreen: React.FC<{
 
     return (
         <div className="w-full h-screen flex flex-col md:flex-row justify-center items-center bg-primary text-primary-text p-8">
-            <div className="w-full md:w-1/2 flex justify-center items-center p-8 logo-container">
-                <img src="assets/logo.png" alt="Логотип" className="w-full h-auto max-h-[80vh] object-contain" />
+            <div className="w-full md:w-1/2 flex justify-center items-center p-8">
+                <div className="logo-image w-full max-w-md max-h-[80vh]" style={{ aspectRatio: '100 / 120' }}></div>
             </div>
              <div className="w-full md:w-1/2 flex flex-col justify-center items-center md:items-start text-center md:text-left p-8">
                 <h1 className="text-4xl lg:text-5xl font-bold text-header mb-12">Система Обліку Нарядів</h1>

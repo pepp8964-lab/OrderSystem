@@ -62,11 +62,19 @@ const Settings: React.FC = () => {
     
     const fontFamilies = [
         { name: 'System Default', value: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' },
-        { name: 'Arial', value: 'Arial, sans-serif' },
-        { name: 'Verdana', value: 'Verdana, sans-serif' },
+        { name: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+        { name: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+        { name: 'Helvetica', value: 'Helvetica, sans-serif' },
+        { name: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
+        { name: 'Trebuchet MS', value: '"Trebuchet MS", sans-serif' },
         { name: 'Georgia', value: 'Georgia, serif' },
-        { name: 'Courier New', value: '"Courier New", monospace' },
-        { name: 'Times New Roman', value: '"Times New Roman", serif' },
+        { name: 'Garamond', value: 'Garamond, serif' },
+        { name: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+        { name: 'Courier New', value: '"Courier New", Courier, monospace' },
+        { name: 'Lucida Console', value: '"Lucida Console", Monaco, monospace' },
+        { name: 'Impact', value: 'Impact, sans-serif' },
+        { name: 'Brush Script MT', value: '"Brush Script MT", cursive' },
+        { name: 'Lucida Handwriting', value: '"Lucida Handwriting", cursive' },
     ];
 
     return (

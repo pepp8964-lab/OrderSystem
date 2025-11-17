@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+  <!-- Shield outline. Using fill-rule to create a hole inside. -->
+  <path fill-rule="evenodd" clip-rule="evenodd" fill="black" d="M50 115 C 45 112, 10 90, 10 55 V 15 L 50 5 L 90 15 V 55 C 90 90, 55 112, 50 115 Z M50 110 C 53 108, 85 88, 85 55 V 18 L 50 10 L 15 18 V 55 C 15 88, 47 108, 50 110 Z"/>
+  <!-- Tryzub -->
+  <path d="M50,25 v20 M50,37.5 c-7.5,5 -7.5,12.5 -7.5,12.5 m15,-12.5 c0,5 0,12.5 0,12.5 M35,55 h30 M50,45 v30 c-5,7.5 -15,5 -15,-5 v-5 m15,10 c5,7.5 15,5 15,-5 v-5" stroke="black" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
