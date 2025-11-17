@@ -18,7 +18,7 @@ export const defaultSettings: AppSettings = {
     },
     fontSettings: {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-        fontSize: 16,
+        fontSize: 12,
         textColor: '',
     },
     defaultTheme: 'halloween',

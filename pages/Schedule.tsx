@@ -136,6 +136,7 @@ const Schedule: React.FC = () => {
     }, [sortedActiveCategories]);
 
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+    const [scheduleSort, setScheduleSort] = useState<'default' | 'alpha'>('default');
 
     useEffect(() => {
         const categoryIdFromUrl = searchParams.get('category');
@@ -219,6 +220,24 @@ const Schedule: React.FC = () => {
         return map;
     }, [schedules, yearMonth, categories]);
 
+    const dutyCountsForMonth = useMemo(() => {
+        const counts = new Map<string, number>();
+        if (!selectedCategoryId) return counts;
+
+        const peopleInCat = people.filter(p => p.categoryIds.includes(selectedCategoryId));
+        peopleInCat.forEach(p => counts.set(p.id, 0));
+
+        const monthSchedule = schedules[selectedCategoryId]?.[yearMonth] || {};
+        for (const personId in monthSchedule) {
+            if (counts.has(personId)) { // Only count for people in the currently selected category
+                const personSchedule = monthSchedule[personId];
+                const dutyCount = Object.values(personSchedule).filter(s => s === DutyStatus.ON_DUTY).length;
+                counts.set(personId, dutyCount);
+            }
+        }
+        return counts;
+    }, [schedules, selectedCategoryId, yearMonth, people]);
+
     const peopleForCategory = useMemo(() => {
         if (!selectedCategoryId || !selectedCategory) return { active: [], unavailable: [], archived: [] };
         
@@ -266,10 +285,17 @@ const Schedule: React.FC = () => {
             .filter(p => !p.deletedTimestamp)
             .map(person => ({ ...person, availableDays: calculateAvailability(person) }))
             .sort((a, b) => {
-                 const hasAnyStatusThisMonth = a.availableDays < daysInMonth || b.availableDays < daysInMonth;
-                 if (!hasAnyStatusThisMonth) return a.fullName.localeCompare(b.fullName);
-                 if (a.availableDays !== b.availableDays) return b.availableDays - a.availableDays;
-                 return a.fullName.localeCompare(b.fullName);
+                if (scheduleSort === 'alpha') {
+                    return a.fullName.localeCompare(b.fullName);
+                }
+
+                // Default sort: by number of duties (ascending), then by name
+                const dutiesA = dutyCountsForMonth.get(a.id) || 0;
+                const dutiesB = dutyCountsForMonth.get(b.id) || 0;
+                if (dutiesA !== dutiesB) {
+                    return dutiesA - dutiesB;
+                }
+                return a.fullName.localeCompare(b.fullName);
             });
             
         const active = activeAndPotentiallyUnavailable.filter(p => p.availableDays > 0);
@@ -279,7 +305,7 @@ const Schedule: React.FC = () => {
 
         return { active, unavailable, archived };
 
-    }, [people, selectedCategoryId, selectedCategory, schedules, year, month, yearMonth, daysInMonth, allDutiesMap, findDutyOnDay]);
+    }, [people, selectedCategoryId, selectedCategory, schedules, year, month, yearMonth, daysInMonth, allDutiesMap, findDutyOnDay, scheduleSort, dutyCountsForMonth]);
     
     useEffect(() => {
         if (tableBodyRef.current) {
@@ -1172,15 +1198,15 @@ const Schedule: React.FC = () => {
             } else { // 'duties'
                 const monthSchedule: MonthlySchedule = newSchedules[selectedCategoryId][yearMonth];
                 for (const personId of Object.keys(monthSchedule)) {
-                    const personSchedule: DailyStatus = monthSchedule[personId];
+                    const personSchedule = monthSchedule[personId];
                     if (personSchedule) {
                         // FIX: Resolve TypeScript errors by correctly handling numeric keys.
-                        // `personSchedule` is of type `DailyStatus`, which has a numeric index signature.
-                        // `Object.keys` returns string keys, so we parse them to numbers before indexing.
-                        for (const dayStr of Object.keys(personSchedule)) {
-                            const dayNum = parseInt(dayStr, 10);
-                            if (personSchedule[dayNum] === DutyStatus.ON_DUTY) {
-                                delete personSchedule[dayNum];
+                        for (const dayStr in personSchedule) {
+                            if (Object.prototype.hasOwnProperty.call(personSchedule, dayStr)) {
+                                const dayNum = parseInt(dayStr, 10);
+                                if ((personSchedule as any)[dayNum] === DutyStatus.ON_DUTY) {
+                                    delete (personSchedule as any)[dayNum];
+                                }
                             }
                         }
                     }
@@ -1410,7 +1436,18 @@ const Schedule: React.FC = () => {
                         <table ref={tableRef} className="w-full border-collapse text-xs table-fixed min-w-[1200px]">
                             <thead className="sticky top-0 z-20 bg-card">
                                 <tr>
-                                    <th className="sticky left-0 bg-card p-1 text-left w-40 border-b border-r border-border-color z-30">ПІБ</th>
+                                    <th className="sticky left-0 bg-card p-1 text-left w-40 border-b border-r border-border-color z-30">
+                                        <button
+                                            onClick={() => setScheduleSort(prev => prev === 'default' ? 'alpha' : 'default')}
+                                            className="w-full text-left font-semibold text-header hover:bg-secondary p-1 rounded-md transition-colors flex items-center justify-between"
+                                            title={scheduleSort === 'default' ? "Сортувати за алфавітом" : "Сортувати за замовчуванням (кількість нарядів)"}
+                                        >
+                                            ПІБ
+                                            <span className="text-xs text-secondary-text px-1 rounded-sm bg-primary">
+                                                {scheduleSort === 'alpha' ? 'А-Я' : '1-9'}
+                                            </span>
+                                        </button>
+                                    </th>
                                     {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
                                         const date = new Date(year, month, day);
                                         const dayOfWeek = date.getDay();
