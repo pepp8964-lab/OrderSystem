@@ -18,6 +18,16 @@ interface DutyRosterModalProps {
     subdivisions: Subdivision[];
 }
 
+const mmToTwips = (mm: number) => Math.round(mm * 56.7);
+
+const toLowerCaseWithExceptions = (str: string, exceptions: string[] = ['БП', 'РАО']) => {
+    if (!str) return '';
+    const upperExceptions = new Set(exceptions.map(e => e.toUpperCase()));
+    return str.split(' ').map(word => 
+        upperExceptions.has(word.toUpperCase()) ? word.toUpperCase() : word.toLowerCase()
+    ).join(' ');
+};
+
 const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, categories, schedules, subdivisions }) => {
     const [viewDate, setViewDate] = useState(new Date());
     const [weaponGroupOverrides, setWeaponGroupOverrides] = useLocalStorage<Record<string, Record<string, number>>>('weapon-group-overrides', {});
@@ -139,7 +149,10 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
         return null;
     }, [activeWeapons, getDutiesForDate, weaponGroupOverrides, weaponsMap]);
     
-    const dutiesForViewDate = useMemo(() => getDutiesForDate(viewDate), [viewDate, getDutiesForDate]);
+    const dutiesForViewDate = useMemo(() => {
+        const allDuties = getDutiesForDate(viewDate);
+        return allDuties.filter(duty => duty.person && duty.person.type !== 'subdivision');
+    }, [viewDate, getDutiesForDate]);
 
     const groupedDuties = useMemo(() => {
         const categoryMap = new Map(activeCategories.map(c => [c.id, c]));
@@ -311,11 +324,11 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
             return;
         }
 
-        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun, TabStopType, TabStopPosition } = docx;
+        const { Document, Packer, Paragraph, TextRun, AlignmentType, TabStopType } = docx;
 
         try {
-            const logoBuffer = await fetch('assets/logo.svg').then(res => res.arrayBuffer());
-
+            const docChildren: docx.Paragraph[] = [];
+            
             const orderFormationDate = new Date(viewDate);
             orderFormationDate.setDate(viewDate.getDate() - 1);
             
@@ -329,75 +342,131 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
             };
             const formattedDutyDate = formatDateForBody(viewDate);
 
-            const sections: any[] = [];
-            
-            sections.push(new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new ImageRun({ data: logoBuffer, transformation: { width: 70, height: 100 } })],
-                spacing: { after: 300 }
-            }));
+            docChildren.push(new Paragraph({ style: "docHeader", text: "МІНІСТЕРСТВО ОБОРОНИ УКРАЇНИ" }));
+            docChildren.push(new Paragraph({ style: "docHeader", text: "НАКАЗ" }));
+            docChildren.push(new Paragraph({ style: "docSubHeader", text: "командира військової частини А1363", spacing: { after: 100 } }));
+            docChildren.push(new Paragraph({ style: "docSubHeader", text: "(по стройовій частині)", spacing: { after: 600 } }));
 
-            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "МІНІСТЕРСТВО ОБОРОНИ УКРАЇНИ", bold: true, size: 28 })], spacing: { after: 300 } }));
-            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "НАКАЗ", bold: true, size: 28 })], spacing: { after: 300 } }));
-            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "командира військової частини А1363", size: 24 })], spacing: { after: 100 } }));
-            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "(по стройовій частині)", size: 24 })], spacing: { after: 600 } }));
-
-            sections.push(new Paragraph({
+            docChildren.push(new Paragraph({
+                style: "dateLine",
                 children: [
-                    new TextRun({ text: formattedOrderDate, size: 24 }),
-                    new TextRun({ text: `\t${orderLocation}`, size: 24 }),
-                    new TextRun({ text: `\t№ ${orderNumber}`, size: 24 }),
+                    new TextRun(formattedOrderDate),
+                    new TextRun({ text: `\t${orderLocation}` }),
+                    new TextRun({ text: `\t№ ${orderNumber}` }),
                 ],
-                tabStops: [
-                    { type: TabStopType.CENTER, position: 4535 },
-                    { type: TabStopType.RIGHT, position: 9070 },
-                ],
-                spacing: { after: 600 }
             }));
 
-            sections.push(new Paragraph({
-                children: [new TextRun({ text: `1. Добовий наряд на ${formattedDutyDate} року призначити у складі:`, size: 24 })],
-                indent: { firstLine: 720 },
-                spacing: { after: 400 }
+            docChildren.push(new Paragraph({
+                children: [new TextRun({ text: `1. Добовий наряд на ${formattedDutyDate} року призначити у складі:` })],
+                spacing: { after: 240 }
             }));
 
-            groupedDuties.forEach(({ parent, duties }) => {
-                sections.push(new Paragraph({
-                    children: [new TextRun({ text: (parent.groupName || parent.name).toUpperCase(), bold: true, size: 24 })],
-                    spacing: { before: 400, after: 200 }
-                }));
+            let subPointCounter = 1;
+            const sortedParentCategories = activeCategories.filter(c => !c.parentId && !c.deletedTimestamp).sort((a,b) => a.order - b.order);
 
-                const headerRow = new TableRow({
-                    children: [
-                        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "#", bold: true})] })] }),
-                        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Звання та ПІБ", bold: true})] })] }),
-                        new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Посада", bold: true})] })] }),
-                        new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Зброя", bold: true})] })] }),
-                        new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Патрони", bold: true})] })] }),
-                    ]
-                });
-                
-                const dataRows = duties.map(({ person, category, weapon }, index) => {
-                    const fullName = `${person.lastName || ''} ${person.firstName || ''} ${person.patronymic || ''}`.trim();
-                    const fullPosition = formatHierarchicalPositionForRoster(person, subdivisions).toLowerCase();
-                    const ammoCount = weapon && category.weaponAssignment?.ammoCount;
-                    const ammoType = weapon && category.weaponAssignment?.ammoType;
+            for (const parent of sortedParentCategories) {
+                 const dutiesInGroup = dutiesForViewDate.filter(d => d.category.parentId === parent.id || d.category.id === parent.id);
+                 if (dutiesInGroup.length === 0) continue;
 
-                    return new TableRow({
-                        children: [
-                            new TableCell({ children: [new Paragraph(`${index + 1}`)] }),
-                            new TableCell({ children: [new Paragraph(`${person.rank.toLowerCase()} ${fullName}`)] }),
-                            new TableCell({ children: [new Paragraph(fullPosition)] }),
-                            new TableCell({ children: [new Paragraph(weapon ? `${weapon.type} №${weapon.serialNumber}` : 'Без зброї')] }),
-                            new TableCell({ children: [new Paragraph(ammoCount ? `${ammoCount} (${ammoType})` : '-')] }),
-                        ]
+                 const uniqueCategoriesInGroup = dutiesInGroup.reduce((acc, duty) => {
+                    if (!acc.find(c => c.id === duty.category.id)) {
+                        acc.push(duty.category);
+                    }
+                    return acc;
+                }, [] as Category[]).sort((a,b) => a.order - b.order);
+
+                let isFirstInCategoryGroup = true;
+
+                for (const category of uniqueCategoriesInGroup) {
+                    const peopleInThisCategory = dutiesForViewDate.filter(d => d.category.id === category.id).map(d => d.person);
+                    if (peopleInThisCategory.length === 0) continue;
+
+                    const personnelStrings = peopleInThisCategory.map(person => {
+                        const position = toLowerCaseWithExceptions(formatHierarchicalPositionForRoster(person, subdivisions));
+                        const weapon = getWeaponForPersonOnDuty(person, category, viewDate);
+                        
+                        let weaponDetails = '';
+                        if(weapon) {
+                            const ammoCount = category.weaponAssignment?.ammoCount;
+                            const ammoType = category.weaponAssignment?.ammoType;
+                            weaponDetails = `(${weapon.type} № ${weapon.serialNumber}${ammoCount ? `, набої ${ammoType || ''} – ${ammoCount} шт` : ''})`;
+                        }
+
+                        const lastName = person.lastName || '';
+                        const firstName = person.firstName || '';
+                        const patronymic = person.patronymic || '';
+                        const firstInitial = firstName.trim() ? `${firstName.trim().charAt(0)}.` : '';
+                        const patronymicInitial = patronymic.trim() ? `${patronymic.trim().charAt(0)}.` : '';
+                        const initials = [firstInitial, patronymicInitial].filter(Boolean).join('');
+                        
+                        return `${position} ${toLowerCaseWithExceptions(person.rank)} ${lastName.toUpperCase()} ${initials} ${weaponDetails}`.trim();
                     });
-                });
-                const table = new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } });
-                sections.push(table);
-            });
+                    
+                    let fullText = `${toLowerCaseWithExceptions(category.name)} – ${personnelStrings.join(', ')}`;
 
-            const doc = new Document({ sections: [{ children: sections }] });
+                    if (isFirstInCategoryGroup) {
+                        docChildren.push(new Paragraph({
+                            children: [new TextRun({ text: `1.${subPointCounter}. ${fullText}`})],
+                        }));
+                        isFirstInCategoryGroup = false;
+                    } else {
+                        docChildren.push(new Paragraph({
+                            children: [new TextRun(fullText)],
+                        }));
+                    }
+                }
+                 docChildren.push(new Paragraph({ style: "noIndent", text: "" }));
+                 subPointCounter++;
+            }
+
+            const doc = new docx.Document({
+                styles: {
+                    default: {
+                        document: {
+                            run: { size: 28, font: "Times New Roman" },
+                        },
+                        paragraph: {
+                            spacing: { after: 0, before: 0, line: 240 },
+                            alignment: AlignmentType.JUSTIFIED,
+                            indent: { firstLine: 720 },
+                        },
+                    },
+                    paragraphStyles: [
+                        {
+                            id: "docHeader", name: "Doc Header", basedOn: "Normal", next: "Normal",
+                            run: { bold: true },
+                            paragraph: { alignment: AlignmentType.CENTER, indent: { firstLine: 0 }, spacing: { after: 300 } },
+                        },
+                        {
+                            id: "docSubHeader", name: "Doc SubHeader", basedOn: "Normal", next: "Normal",
+                            paragraph: { alignment: AlignmentType.CENTER, indent: { firstLine: 0 }, spacing: { after: 100 } },
+                        },
+                        {
+                            id: "dateLine", name: "Date Line", basedOn: "Normal", next: "Normal",
+                            paragraph: {
+                                indent: { firstLine: 0 },
+                                tabStops: [ { type: TabStopType.CENTER, position: 4535 }, { type: TabStopType.RIGHT, position: 9070 } ],
+                                spacing: { after: 600 },
+                                alignment: AlignmentType.LEFT,
+                            },
+                        },
+                        {
+                            id: "noIndent", name: "No Indent", basedOn: "Normal", next: "Normal",
+                            paragraph: { indent: { firstLine: 0 } },
+                        }
+                    ]
+                },
+                sections: [{ 
+                    properties: {
+                        page: {
+                            margin: {
+                                top: mmToTwips(15), right: mmToTwips(10), bottom: mmToTwips(15), left: mmToTwips(30),
+                            },
+                        },
+                    },
+                    children: docChildren 
+                }],
+            });
             
             const orderNumOnly = parseInt(orderNumber.replace(/\D/g, ''), 10);
             if (!isNaN(orderNumOnly)) {
@@ -413,7 +482,7 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
 
         } catch (error) {
             console.error("Failed to generate order:", error);
-            showToast("Не вдалося сформувати наказ. Див. консоль для деталей.");
+            showToast(`Не вдалося сформувати наказ: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
