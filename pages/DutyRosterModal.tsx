@@ -26,9 +26,9 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
     
     // --- State for "Наказ" tab ---
     const [showOrderForm, setShowOrderForm] = useState(false);
-    const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
-    const [lastOrderNumber, setLastOrderNumber] = useLocalStorage<number>('last-order-number', 0);
-    const [orderNumber, setOrderNumber] = useState(lastOrderNumber + 1);
+    const [orderLocation, setOrderLocation] = useState('с. Орлівщина');
+    const [lastOrderNumber, setLastOrderNumber] = useLocalStorage<number>('last-order-number', 317);
+    const [orderNumber, setOrderNumber] = useState(`${lastOrderNumber + 1} нр`);
 
     const getWeekTuesdayDate = (d: Date) => {
         const date = new Date(d);
@@ -305,103 +305,116 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
         });
     };
     
-    const handleGenerateAndDownloadOrder = () => {
-        const date = new Date(orderDate + 'T00:00:00');
-        const dutiesForOrderDate = getDutiesForDate(date);
-
-        if (dutiesForOrderDate.length === 0) {
+    const handleGenerateAndDownloadOrder = async () => {
+        if (dutiesForViewDate.length === 0) {
             showToast("На обрану дату немає нарядів для формування наказу.");
             return;
         }
 
-        const categoryMap = new Map(activeCategories.map(c => [c.id, c]));
-        const grouped = new Map<string, { parent: Category; duties: { person: Person; category: Category, weapon: Weapon | null }[] }>();
-        dutiesForOrderDate.forEach(({ person, category }) => {
-            let parent = category.parentId ? categoryMap.get(category.parentId) : category;
-             if (parent && !parent.deletedTimestamp) {
-                if (!grouped.has(parent.id)) {
-                    grouped.set(parent.id, { parent, duties: [] });
-                }
-                const weapon = getWeaponForPersonOnDuty(person, category, date);
-                grouped.get(parent.id)!.duties.push({ person, category, weapon });
-            }
-        });
-        const groupedDutiesForOrder = Array.from(grouped.values()).sort((a, b) => a.parent.order - b.parent.order);
+        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun, TabStopType, TabStopPosition } = docx;
 
-        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+        try {
+            const logoBuffer = await fetch('assets/logo.svg').then(res => res.arrayBuffer());
 
-        const sections: any[] = [];
-        
-        sections.push(new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({ text: "НАКАЗ", bold: true, size: 28 })],
-            spacing: { after: 300 }
-        }));
-        
-        const d = new Date(orderDate);
-        const formattedDate = `«${d.getDate()}» ${UKRAINIAN_MONTHS_GENITIVE[d.getMonth()]} ${d.getFullYear()} року`;
+            const orderFormationDate = new Date(viewDate);
+            orderFormationDate.setDate(viewDate.getDate() - 1);
+            
+            const formattedOrderDate = orderFormationDate.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            
+            const formatDateForBody = (date: Date): string => {
+                const day = date.getDate();
+                const month = UKRAINIAN_MONTHS_GENITIVE[date.getMonth()];
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            };
+            const formattedDutyDate = formatDateForBody(viewDate);
 
-        sections.push(new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: formattedDate, size: 24 })],
-            spacing: { after: 100 }
-        }));
-        sections.push(new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: `№ ${orderNumber}`, size: 24 })],
-            spacing: { after: 600 }
-        }));
-
-        groupedDutiesForOrder.forEach(({ parent, duties }) => {
+            const sections: any[] = [];
+            
             sections.push(new Paragraph({
-                children: [new TextRun({ text: (parent.groupName || parent.name).toUpperCase(), bold: true, size: 24 })],
-                spacing: { before: 400, after: 200 }
+                alignment: AlignmentType.CENTER,
+                children: [new ImageRun({ data: logoBuffer, transformation: { width: 70, height: 100 } })],
+                spacing: { after: 300 }
             }));
 
-            const headerRow = new TableRow({
-                children: [
-                    new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "#", bold: true})] })] }),
-                    new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Звання та ПІБ", bold: true})] })] }),
-                    new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Посада", bold: true})] })] }),
-                    new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Зброя", bold: true})] })] }),
-                    new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Патрони", bold: true})] })] }),
-                ]
-            });
-            
-            const dataRows = duties.map(({ person, category, weapon }, index) => {
-                const fullName = `${person.lastName || ''} ${person.firstName || ''} ${person.patronymic || ''}`.trim();
-                const fullPosition = formatHierarchicalPositionForRoster(person, subdivisions).toLowerCase();
-                const ammoCount = weapon && category.weaponAssignment?.ammoCount;
-                const ammoType = weapon && category.weaponAssignment?.ammoType;
+            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "МІНІСТЕРСТВО ОБОРОНИ УКРАЇНИ", bold: true, size: 28 })], spacing: { after: 300 } }));
+            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "НАКАЗ", bold: true, size: 28 })], spacing: { after: 300 } }));
+            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "командира військової частини А1363", size: 24 })], spacing: { after: 100 } }));
+            sections.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "(по стройовій частині)", size: 24 })], spacing: { after: 600 } }));
 
-                return new TableRow({
+            sections.push(new Paragraph({
+                children: [
+                    new TextRun({ text: formattedOrderDate, size: 24 }),
+                    new TextRun({ text: `\t${orderLocation}`, size: 24 }),
+                    new TextRun({ text: `\t№ ${orderNumber}`, size: 24 }),
+                ],
+                tabStops: [
+                    { type: TabStopType.CENTER, position: 4535 },
+                    { type: TabStopType.RIGHT, position: 9070 },
+                ],
+                spacing: { after: 600 }
+            }));
+
+            sections.push(new Paragraph({
+                children: [new TextRun({ text: `1. Добовий наряд на ${formattedDutyDate} року призначити у складі:`, size: 24 })],
+                indent: { firstLine: 720 },
+                spacing: { after: 400 }
+            }));
+
+            groupedDuties.forEach(({ parent, duties }) => {
+                sections.push(new Paragraph({
+                    children: [new TextRun({ text: (parent.groupName || parent.name).toUpperCase(), bold: true, size: 24 })],
+                    spacing: { before: 400, after: 200 }
+                }));
+
+                const headerRow = new TableRow({
                     children: [
-                        new TableCell({ children: [new Paragraph(`${index + 1}`)] }),
-                        new TableCell({ children: [new Paragraph(`${person.rank.toLowerCase()} ${fullName}`)] }),
-                        new TableCell({ children: [new Paragraph(fullPosition)] }),
-                        new TableCell({ children: [new Paragraph(weapon ? `${weapon.type} №${weapon.serialNumber}` : 'Без зброї')] }),
-                        new TableCell({ children: [new Paragraph(ammoCount ? `${ammoCount} (${ammoType})` : '-')] }),
+                        new TableCell({ width: { size: 5, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "#", bold: true})] })] }),
+                        new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Звання та ПІБ", bold: true})] })] }),
+                        new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Посада", bold: true})] })] }),
+                        new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Зброя", bold: true})] })] }),
+                        new TableCell({ width: { size: 10, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({text: "Патрони", bold: true})] })] }),
                     ]
                 });
+                
+                const dataRows = duties.map(({ person, category, weapon }, index) => {
+                    const fullName = `${person.lastName || ''} ${person.firstName || ''} ${person.patronymic || ''}`.trim();
+                    const fullPosition = formatHierarchicalPositionForRoster(person, subdivisions).toLowerCase();
+                    const ammoCount = weapon && category.weaponAssignment?.ammoCount;
+                    const ammoType = weapon && category.weaponAssignment?.ammoType;
+
+                    return new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph(`${index + 1}`)] }),
+                            new TableCell({ children: [new Paragraph(`${person.rank.toLowerCase()} ${fullName}`)] }),
+                            new TableCell({ children: [new Paragraph(fullPosition)] }),
+                            new TableCell({ children: [new Paragraph(weapon ? `${weapon.type} №${weapon.serialNumber}` : 'Без зброї')] }),
+                            new TableCell({ children: [new Paragraph(ammoCount ? `${ammoCount} (${ammoType})` : '-')] }),
+                        ]
+                    });
+                });
+                const table = new Table({ rows: [headerRow, ...dataRows], width: { size: 100, type: WidthType.PERCENTAGE } });
+                sections.push(table);
             });
 
-            const table = new Table({
-                rows: [headerRow, ...dataRows],
-                width: { size: 100, type: WidthType.PERCENTAGE }
+            const doc = new Document({ sections: [{ children: sections }] });
+            
+            const orderNumOnly = parseInt(orderNumber.replace(/\D/g, ''), 10);
+            if (!isNaN(orderNumOnly)) {
+                setLastOrderNumber(orderNumOnly);
+            }
+            const filename = `наказ по наряду №${orderNumber} від ${formattedOrderDate}.docx`;
+
+            Packer.toBlob(doc).then(blob => {
+                saveAs(blob, filename);
+                showToast("Формування наказу завершено.");
+                setShowOrderForm(false);
             });
 
-            sections.push(table);
-        });
-
-        const doc = new Document({ sections: [{ children: sections }] });
-
-        Packer.toBlob(doc).then(blob => {
-            saveAs(blob, `${orderDate}_№${orderNumber}.docx`);
-            showToast("Формування наказу завершено.");
-            setLastOrderNumber(orderNumber);
-            setShowOrderForm(false);
-            onClose();
-        });
+        } catch (error) {
+            console.error("Failed to generate order:", error);
+            showToast("Не вдалося сформувати наказ. Див. консоль для деталей.");
+        }
     };
 
     return (
@@ -498,19 +511,23 @@ const DutyRosterModal: React.FC<DutyRosterModalProps> = ({ onClose, people, cate
                 {activeTab === 'order' && (
                     <div className="p-6 flex-grow flex flex-col justify-center items-center">
                         {!showOrderForm ? (
-                             <button onClick={() => { setShowOrderForm(true); setOrderNumber(lastOrderNumber + 1); }} className="bg-accent text-white px-6 py-3 rounded-lg hover:bg-accent-hover transition-colors shadow-lg text-lg font-semibold">
+                             <button onClick={() => { setShowOrderForm(true); setOrderNumber(`${lastOrderNumber + 1} нр`); }} className="bg-accent text-white px-6 py-3 rounded-lg hover:bg-accent-hover transition-colors shadow-lg text-lg font-semibold">
                                 Сформувати наказ
                             </button>
                         ) : (
                             <div className="w-full max-w-sm space-y-4 bg-secondary p-6 rounded-lg border border-border-color">
                                 <h3 className="text-lg font-bold text-header text-center">Параметри наказу</h3>
                                 <div>
-                                    <label htmlFor="order-date" className="block text-sm font-medium text-secondary-text mb-1">Дата наказу</label>
-                                    <input type="date" id="order-date" value={orderDate} onChange={e => setOrderDate(e.target.value)} className="w-full bg-primary p-2 rounded-md border border-border-color" />
+                                    <label className="block text-sm font-medium text-secondary-text mb-1">Дата чергування</label>
+                                    <p className="w-full bg-primary p-2 rounded-md border border-border-color">{viewDate.toLocaleDateString('uk-UA')}</p>
                                 </div>
                                 <div>
                                     <label htmlFor="order-number" className="block text-sm font-medium text-secondary-text mb-1">Номер наказу</label>
-                                    <input type="number" id="order-number" value={orderNumber} onChange={e => setOrderNumber(parseInt(e.target.value, 10))} className="w-full bg-primary p-2 rounded-md border border-border-color" />
+                                    <input type="text" id="order-number" value={orderNumber} onChange={e => setOrderNumber(e.target.value)} className="w-full bg-primary p-2 rounded-md border border-border-color" />
+                                </div>
+                                <div>
+                                    <label htmlFor="order-location" className="block text-sm font-medium text-secondary-text mb-1">Населений пункт</label>
+                                    <input type="text" id="order-location" value={orderLocation} onChange={e => setOrderLocation(e.target.value)} className="w-full bg-primary p-2 rounded-md border border-border-color" />
                                 </div>
                                 <div className="flex gap-2 pt-2">
                                      <button onClick={() => setShowOrderForm(false)} className="w-full bg-primary text-primary-text px-4 py-2 rounded-lg hover:bg-secondary transition-colors border border-border-color">
