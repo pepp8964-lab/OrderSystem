@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
 
 const LOCAL_STORAGE_CHANGE_EVENT = 'onLocalStorageChange';
+const DATA_CHANGED_EVENT = 'datachanged';
+
 
 // Simple deep merge for filling in defaults
 function mergeDefaults<T extends object>(data: Partial<T>, defaults: T): T {
@@ -44,6 +46,8 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetState
       window.localStorage.setItem(key, serializedValue);
       // Dispatch event for other components in the same tab
       window.dispatchEvent(new CustomEvent(LOCAL_STORAGE_CHANGE_EVENT, { detail: { key, newValue: serializedValue } }));
+      // Dispatch event for unsaved changes warning
+      window.dispatchEvent(new CustomEvent(DATA_CHANGED_EVENT));
     } catch (error) {
       console.error(error);
     }

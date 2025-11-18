@@ -10,12 +10,14 @@ import Settings from './pages/Settings';
 import Updates, { CHANGELOG_DATA } from './pages/Updates';
 import Structure from './pages/Structure';
 import Laboratory from './pages/Laboratory';
+import Formation from './pages/Formation';
 import { useTheme, useToast, useActionLog, useModal } from './context/ThemeContext';
 import Card from './components/Card';
 import { AllData, AppSettings } from './types';
 import useLocalStorage from './hooks/useLocalStorage';
 import { defaultSettings } from './utils/defaults';
 import ConfirmationModal from './components/ConfirmationModal';
+import { saveFileToDB } from './utils/db';
 
 const ToastContainer: React.FC = () => {
     const { toast, hideToast } = useToast();
@@ -76,27 +78,69 @@ const HistoryPage: React.FC = () => {
 };
 
 const StartupScreen: React.FC<{
-    onCreateNew: () => void;
-    onOpenProject: (data: AllData) => void;
-}> = ({ onCreateNew, onOpenProject }) => {
+    onInitialize: (unitName: string, data?: AllData) => void;
+}> = ({ onInitialize }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showToast } = useToast();
+    const [unitName, setUnitName] = useState('');
+    const [isSettingUnit, setIsSettingUnit] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
-                    const data = JSON.parse(event.target?.result as string);
-                    onOpenProject(data);
+                    const data = JSON.parse(event.target?.result as string) as AllData & {unitName?: string, cachedDbFile?: {name: string, data: string}, excelMapping?: any};
+                    
+                    if (data.cachedDbFile) {
+                        const fileBlob = await (await fetch(data.cachedDbFile.data)).blob();
+                        const dbFile = new File([fileBlob], data.cachedDbFile.name, { type: fileBlob.type });
+                        await saveFileToDB(dbFile);
+                    }
+                    if (data.excelMapping) {
+                         localStorage.setItem('excel-import-settings', JSON.stringify(data.excelMapping));
+                    }
+                    
+                    onInitialize(data.unitName || 'Невідомий підрозділ', data);
                 } catch (error) {
-                    showToast("Некоректний формат файлу JSON.");
+                    showToast("Некоректний формат файлу.");
+                    console.error("File import error:", error);
                 }
             };
             reader.readAsText(file);
         }
     };
+    
+    const handleStartNew = () => {
+        if (!unitName.trim()) {
+            showToast("Будь ласка, введіть назву підрозділу.");
+            return;
+        }
+        onInitialize(unitName.trim());
+    };
+
+    if (isSettingUnit) {
+        return (
+            <div className="w-full h-screen flex flex-col justify-center items-center bg-primary text-primary-text p-8">
+                 <h1 className="text-4xl lg:text-5xl font-bold text-header mb-8">Назва вашого підрозділу</h1>
+                 <p className="text-secondary-text mb-12 max-w-lg text-center">Ця назва буде відображатися в програмі та може бути включена в експортовані файли.</p>
+                 <div className="w-full max-w-md">
+                     <input
+                        type="text"
+                        value={unitName}
+                        onChange={(e) => setUnitName(e.target.value)}
+                        placeholder="Напр. 1-й батальйон"
+                        className="w-full bg-secondary p-4 rounded-lg border border-border-color text-center text-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                    <div className="flex justify-center gap-4 mt-8">
+                         <button onClick={() => setIsSettingUnit(false)} className="bg-secondary text-primary-text px-8 py-3 rounded-lg hover:bg-primary border border-border-color">Назад</button>
+                         <button onClick={handleStartNew} className="bg-accent text-white px-8 py-3 rounded-lg hover:bg-accent-hover">Створити</button>
+                    </div>
+                 </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-screen flex flex-col md:flex-row justify-center items-center bg-primary text-primary-text p-8">
@@ -113,7 +157,7 @@ const StartupScreen: React.FC<{
                         Відкрити розклад
                     </button>
                     <button 
-                        onClick={onCreateNew} 
+                        onClick={() => setIsSettingUnit(true)}
                         className="bg-secondary text-primary-text px-8 py-4 rounded-lg hover:bg-primary transition-colors shadow-lg border border-border-color text-lg font-semibold"
                     >
                         Створити новий
@@ -161,14 +205,32 @@ const UpdatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const App: React.FC = () => {
   const { theme } = useTheme();
-  const [isInitialized, setIsInitialized] = useState(!!localStorage.getItem('people'));
+  const [isInitialized, setIsInitialized] = useState(!!localStorage.getItem('unitName'));
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const { showToast } = useToast();
   const { openRosterModal, openHotkeyHelp, closeRosterModal, closeHotkeyHelp } = useModal();
   const [settings] = useLocalStorage<AppSettings>('app-settings', defaultSettings);
+  const [isDirty, setIsDirty] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const markAsDirty = () => setIsDirty(true);
+    window.addEventListener('datachanged', markAsDirty);
+    return () => window.removeEventListener('datachanged', markAsDirty);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     document.body.className = '';
@@ -221,7 +283,7 @@ const App: React.FC = () => {
             // Hotkey for saving (exporting)
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
-                openRosterModal(); // Re-purposed to open the duty roster, can be changed
+                navigate('/formation');
             }
             
             // Hotkey for closing modals
@@ -269,6 +331,7 @@ const App: React.FC = () => {
                 document.body.removeChild(link);
                 
                 console.log(`Autosave complete at ${now.toLocaleTimeString()}`);
+                setIsDirty(false);
 
             } catch (error) {
                 console.error("Autosave failed:", error);
@@ -279,56 +342,52 @@ const App: React.FC = () => {
     }
   }, [settings.autoSaveInterval]);
   
-  const handleCreateNew = () => {
-    const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs'];
+  const handleInitialize = (unitName: string, data?: AllData) => {
+    const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName'];
     projectKeys.forEach(key => localStorage.removeItem(key));
 
-    localStorage.setItem('people', '[]');
-    localStorage.setItem('categories', '[]');
-    localStorage.setItem('schedules', '{}');
-    localStorage.setItem('weapons', '[]');
-    localStorage.setItem('subdivisions', '[]');
-    localStorage.setItem('custom-weapon-types', '[]');
+    if (data) {
+        if (data.people) localStorage.setItem('people', JSON.stringify(data.people));
+        if (data.categories) localStorage.setItem('categories', JSON.stringify(data.categories));
+        if (data.schedules) localStorage.setItem('schedules', JSON.stringify(data.schedules));
+        if (data.weapons) localStorage.setItem('weapons', JSON.stringify(data.weapons));
+        if (data.settings) localStorage.setItem('app-settings', JSON.stringify(data.settings));
+        if (data.subdivisions) localStorage.setItem('subdivisions', JSON.stringify(data.subdivisions));
+        if (data.customWeaponTypes) localStorage.setItem('custom-weapon-types', JSON.stringify(data.customWeaponTypes));
+        showToast("Проект успішно завантажено.");
+    } else {
+        localStorage.setItem('people', '[]');
+        localStorage.setItem('categories', '[]');
+        localStorage.setItem('schedules', '{}');
+        localStorage.setItem('weapons', '[]');
+        localStorage.setItem('subdivisions', '[]');
+        localStorage.setItem('custom-weapon-types', '[]');
+        showToast("Створено новий порожній розклад.");
+    }
     
+    localStorage.setItem('unitName', unitName);
     setIsInitialized(true);
     setShowUpdatesModal(true);
-    showToast("Створено новий порожній розклад.");
+    setIsDirty(false);
   };
 
-  const handleOpenProject = (data: AllData) => {
-    const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs'];
-    projectKeys.forEach(key => localStorage.removeItem(key));
-
-    if (data.people) localStorage.setItem('people', JSON.stringify(data.people));
-    if (data.categories) localStorage.setItem('categories', JSON.stringify(data.categories));
-    if (data.schedules) localStorage.setItem('schedules', JSON.stringify(data.schedules));
-    if (data.weapons) localStorage.setItem('weapons', JSON.stringify(data.weapons));
-    if (data.settings) localStorage.setItem('app-settings', JSON.stringify(data.settings));
-    if (data.subdivisions) localStorage.setItem('subdivisions', JSON.stringify(data.subdivisions));
-    if (data.customWeaponTypes) localStorage.setItem('custom-weapon-types', JSON.stringify(data.customWeaponTypes));
-    
-    setIsInitialized(true);
-    setShowUpdatesModal(true);
-    showToast("Проект успішно завантажено.");
-  };
-  
   const handleExitProject = () => {
       setIsExitModalOpen(true);
   };
   
   const confirmExitProject = () => {
-      const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs'];
+      const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName'];
       projectKeys.forEach(key => localStorage.removeItem(key));
       setIsInitialized(false);
       setIsExitModalOpen(false);
       showToast("Проект закрито.");
-      // Using reload to ensure all state in all components is fully reset
+      setIsDirty(false);
       window.location.reload(); 
   };
 
 
   if (!isInitialized) {
-    return <StartupScreen onCreateNew={handleCreateNew} onOpenProject={handleOpenProject} />;
+    return <StartupScreen onInitialize={handleInitialize} />;
   }
 
   return (
@@ -346,6 +405,7 @@ const App: React.FC = () => {
           <Route path="/updates" element={<Updates />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/laboratory" element={<Laboratory />} />
+          <Route path="/formation" element={<Formation />} />
         </Routes>
       </Layout>
       <ToastContainer />

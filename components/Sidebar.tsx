@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
       </button>
       <aside className={`non-printable bg-sidebar w-72 min-h-screen p-6 flex-shrink-0 flex flex-col justify-between fixed lg:relative z-40 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl backdrop-blur-lg`}>
         <div className="flex-grow flex flex-col min-h-0">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-2">
             <button onClick={openExitModal} className="text-center hover:bg-white/10 p-2 rounded-lg transition-colors">
                 <h1 className="text-white text-4xl font-bold tracking-wider">СОН</h1>
                 <p className="text-secondary-text text-xs tracking-widest">Система обліку нарядів</p>
@@ -85,6 +85,13 @@ const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
                 </button>
             </div>
           </div>
+          <NavLink 
+            to="/formation"
+            onClick={() => setIsOpen(false)}
+            className="w-full text-center bg-card text-header px-4 py-3 rounded-lg hover:bg-accent hover:text-white transition-colors mt-2 mb-4 text-lg font-bold animate-gradient-text shadow-lg border border-border-color"
+          >
+            ФОРМУВАННЯ
+          </NavLink>
           <div className="relative mb-6">
               <SearchIcon className="w-5 h-5 absolute top-1/2 -translate-y-1/2 left-3 text-secondary-text pointer-events-none" />
               <input
@@ -122,14 +129,6 @@ const Sidebar: React.FC<SidebarProps> = ({ openExitModal }) => {
                         {scheduleNavItem.icon}
                         <span className="ml-4 font-medium">{scheduleNavItem.label}</span>
                     </NavLink>
-                 </li>
-                 <li>
-                    <button 
-                      onClick={() => { openRosterModal(); setIsOpen(false); }}
-                      className="w-full text-center bg-accent/20 text-accent px-4 py-3 rounded-lg hover:bg-accent hover:text-white transition-colors mt-2 text-sm font-semibold"
-                    >
-                      Довести наряд
-                    </button>
                  </li>
             </ul>
           </nav>

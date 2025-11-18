@@ -2,9 +2,6 @@ import React from 'react';
 import Sidebar from './Sidebar';
 import Notifications from './Notifications';
 import { useModal } from '../context/ThemeContext';
-import useLocalStorage from '../hooks/useLocalStorage';
-import { Person, Category, ScheduleData, Subdivision } from '../types';
-import DutyRosterModal from '../pages/DutyRosterModal';
 import { useSearch } from '../context/SearchContext';
 import GlobalSearch from './GlobalSearch';
 import HotkeyHelpModal from './HotkeyHelpModal';
@@ -17,11 +14,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
-  const { isRosterModalOpen, closeRosterModal, isHotkeyHelpOpen, closeHotkeyHelp, isNotificationsOpen, isImportExportModalOpen, closeImportExportModal, importExportModalMode } = useModal();
-  const [people] = useLocalStorage<Person[]>('people', []);
-  const [categories] = useLocalStorage<Category[]>('categories', []);
-  const [schedules] = useLocalStorage<ScheduleData>('schedules', {});
-  const [subdivisions] = useLocalStorage<Subdivision[]>('subdivisions', []);
+  const { isHotkeyHelpOpen, closeHotkeyHelp, isNotificationsOpen, isImportExportModalOpen, closeImportExportModal, importExportModalMode } = useModal();
   const { isSearchOpen } = useSearch();
 
   return (
@@ -32,15 +25,6 @@ const Layout: React.FC<LayoutProps> = ({ children, openExitModal }) => {
       </main>
       <Notifications />
        {isImportExportModalOpen && <ImportExportModal initialMode={importExportModalMode} onClose={closeImportExportModal} />}
-       {isRosterModalOpen && (
-          <DutyRosterModal
-              onClose={closeRosterModal}
-              people={people}
-              categories={categories}
-              schedules={schedules}
-              subdivisions={subdivisions}
-          />
-      )}
       {isHotkeyHelpOpen && <HotkeyHelpModal onClose={closeHotkeyHelp} />}
       {isSearchOpen && <GlobalSearch />}
       <ContextMenu />

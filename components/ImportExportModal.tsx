@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { AllData } from '../types';
 import { useToast } from '../context/ThemeContext';
+import { getFileFromDB, saveFileToDB } from '../utils/db';
 
 interface ImportExportModalProps {
     initialMode: 'import' | 'export';
@@ -18,6 +19,13 @@ const DATA_KEY_NAMES: Record<DataTypeKey, string> = {
     customWeaponTypes: 'Типи зброї',
     settings: 'Налаштування',
 };
+
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+});
 
 const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onClose }) => {
     const [activeTab, setActiveTab] = useState<'import' | 'export'>(initialMode);
@@ -97,9 +105,10 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
         }
     };
     
-    const handleExport = () => {
+    const handleExport = async (isComplex: boolean) => {
         try {
-            const dataToExport: Partial<AllData> = {};
+            const dataToExport: Partial<AllData> & {unitName?: string, cachedDbFile?: {name: string, data: string}, excelMapping?: any} = {};
+            
             for (const key of DATA_KEYS) {
                 if (exportSelections[key]) {
                     const storageKey = key === 'settings' ? 'app-settings' : key === 'customWeaponTypes' ? 'custom-weapon-types' : key;
@@ -109,12 +118,22 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
                     }
                 }
             }
+            
+            if (isComplex) {
+                const dbFile = await getFileFromDB();
+                if (dbFile) {
+                    const base64Data = await fileToBase64(dbFile);
+                    dataToExport.cachedDbFile = { name: dbFile.name, data: base64Data };
+                }
+                dataToExport.excelMapping = JSON.parse(localStorage.getItem('excel-import-settings') || '{}');
+                dataToExport.unitName = localStorage.getItem('unitName') || '';
+            }
 
             const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataToExport, null, 2))}`;
             const link = document.createElement("a");
             link.href = jsonString;
             const date = new Date().toISOString().slice(0, 10);
-            link.download = `naryady-export-${date}.json`;
+            link.download = `naryady-${isComplex ? 'complex-backup' : 'export'}-${date}.json`;
             link.click();
             showToast("Експорт успішно розпочато.");
             onClose();
@@ -171,7 +190,10 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
                     {activeTab === 'import' ? (
                         <button onClick={handleImport} disabled={!fileData} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover disabled:opacity-50">Імпортувати</button>
                     ) : (
-                        <button onClick={handleExport} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover">Експортувати</button>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleExport(false)} className="bg-secondary text-primary-text px-4 py-2 rounded-lg hover:bg-primary border border-border-color">Звичайний експорт</button>
+                            <button onClick={() => handleExport(true)} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover">Комплексний бекап</button>
+                        </div>
                     )}
                 </div>
             </div>

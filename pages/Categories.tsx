@@ -716,11 +716,12 @@ const Categories: React.FC = () => {
         return availableByRank.filter(p => !peopleInCat.includes(p.id));
     }, [addingToCategory, peopleByCategory, activePeople]);
 
-    const CategoryRow: React.FC<{ category: Category; isChild?: boolean; isDraggable?: boolean }> = ({ category, isChild = false, isDraggable = false }) => {
+    const CategoryRow: React.FC<{ category: Category; numberPrefix: string; isChild?: boolean; isDraggable?: boolean }> = ({ category, numberPrefix, isChild = false, isDraggable = false }) => {
         const peopleCount = peopleByCategory.get(category.id)?.length || 0;
         return (
             <div className="flex items-center gap-2 md:gap-4 p-2 bg-secondary rounded-lg border border-border-color group">
                 {isDraggable && <ReorderIcon className="w-5 h-5 text-secondary-text cursor-grab flex-shrink-0" />}
+                <span className="font-mono text-sm text-secondary-text">{numberPrefix}</span>
                 <span className={`w-3 h-3 rounded-full flex-shrink-0 ${category.color || 'bg-accent'}`} />
                 <div className="flex-grow min-w-0">
                     <h3 className="font-bold text-header truncate" title={category.name}>{category.name}</h3>
@@ -767,8 +768,9 @@ const Categories: React.FC = () => {
                  <p className="text-center text-secondary-text mt-8">{showArchived ? "Архів категорій порожній." : "Немає жодної категорії."}</p>
             ) : (
                 <div className="space-y-4">
-                    {sortedRenderableItems.map(item => {
+                    {sortedRenderableItems.map((item, groupIndex) => {
                         const isGroup = item.children && item.children.length > 0;
+                        const groupNumber = groupIndex + 1;
                         return (
                             <div key={item.id}
                                 draggable={!showArchived}
@@ -780,6 +782,7 @@ const Categories: React.FC = () => {
                                 <Card className="p-4 space-y-3">
                                     <div className="flex items-center gap-2 group">
                                         <ReorderIcon className="w-5 h-5 text-secondary-text cursor-grab" />
+                                        <span className="font-mono text-xl text-secondary-text">{groupNumber}.</span>
                                         {isGroup && (
                                             <button onClick={() => toggleCollapse(item.id)} className="p-1 rounded-full hover:bg-secondary">
                                                 {item.isCollapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
@@ -805,11 +808,11 @@ const Categories: React.FC = () => {
                                     </div>
                                     
                                     <div>
-                                        <CategoryRow category={item} isDraggable={false} />
+                                        <CategoryRow category={item} numberPrefix={`${groupNumber}.1`} isDraggable={false} />
 
                                         {isGroup && !item.isCollapsed && (
                                             <div className="category-children-container space-y-2 pt-2">
-                                                {item.children.map(child => (
+                                                {item.children.map((child, childIndex) => (
                                                     <div key={child.id}
                                                         className="category-child-item"
                                                         draggable={!showArchived}
@@ -818,7 +821,7 @@ const Categories: React.FC = () => {
                                                         onDragEnd={(e) => { e.stopPropagation(); handleDragSort(); }}
                                                         onDragOver={(e) => e.preventDefault()}
                                                     >
-                                                        <CategoryRow category={child} isChild isDraggable />
+                                                        <CategoryRow category={child} numberPrefix={`${groupNumber}.${childIndex + 2}`} isChild isDraggable />
                                                     </div>
                                                 ))}
                                             </div>
