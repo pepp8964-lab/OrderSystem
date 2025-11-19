@@ -4,7 +4,7 @@ export const defaultSettings: AppSettings = {
     autoSaveInterval: 0,
     backupPath: '',
     dbFilePath: '',
-    highlightOnHover: false,
+    highlightOnHover: true,
     experimentalFeatures: {
       enabled: false,
       autofillEnabled: true,
@@ -21,5 +21,5 @@ export const defaultSettings: AppSettings = {
         fontSize: 13,
         textColor: '',
     },
-    defaultTheme: 'halloween',
+    defaultTheme: 'dark',
 };

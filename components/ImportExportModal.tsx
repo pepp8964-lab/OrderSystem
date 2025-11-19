@@ -9,7 +9,7 @@ interface ImportExportModalProps {
 }
 
 type DataTypeKey = keyof AllData;
-const DATA_KEYS: DataTypeKey[] = ['people', 'categories', 'schedules', 'weapons', 'subdivisions', 'customWeaponTypes', 'settings'];
+const DATA_KEYS: DataTypeKey[] = ['people', 'categories', 'schedules', 'weapons', 'subdivisions', 'customWeaponTypes', 'settings', 'commander'];
 const DATA_KEY_NAMES: Record<DataTypeKey, string> = {
     people: 'Особовий склад',
     categories: 'Категорії',
@@ -18,6 +18,7 @@ const DATA_KEY_NAMES: Record<DataTypeKey, string> = {
     subdivisions: 'Структура',
     customWeaponTypes: 'Типи зброї',
     settings: 'Налаштування',
+    commander: 'Дані командира',
 };
 
 const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -38,9 +39,10 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
         subdivisions: { import: false, mode: 'replace' },
         customWeaponTypes: { import: false, mode: 'replace' },
         settings: { import: false, mode: 'replace' },
+        commander: { import: false, mode: 'replace' },
     });
     const [exportSelections, setExportSelections] = useState<Record<DataTypeKey, boolean>>({
-        people: true, categories: true, schedules: true, weapons: true, subdivisions: true, customWeaponTypes: true, settings: true
+        people: true, categories: true, schedules: true, weapons: true, subdivisions: true, customWeaponTypes: true, settings: true, commander: true
     });
     const { showToast } = useToast();
 
@@ -126,7 +128,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
                     dataToExport.cachedDbFile = { name: dbFile.name, data: base64Data };
                 }
                 dataToExport.excelMapping = JSON.parse(localStorage.getItem('excel-import-settings') || '{}');
-                dataToExport.unitName = localStorage.getItem('unitName') || '';
+                dataToExport.unitName = localStorage.getItem('unitName')?.replace(/^"|"$/g, '') || '';
             }
 
             const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataToExport, null, 2))}`;

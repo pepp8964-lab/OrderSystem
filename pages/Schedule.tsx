@@ -351,34 +351,53 @@ const Schedule: React.FC = () => {
         if (!settings.highlightOnHover || !tableRef.current) return;
 
         const table = tableRef.current;
-        const cleanupClasses = () => {
-            table.querySelectorAll('.schedule-highlight-row-hover, .schedule-highlight-col-hover').forEach(el => {
-                el.classList.remove('schedule-highlight-row-hover', 'schedule-highlight-col-hover');
-            });
-        };
+        let rafId: number | null = null;
 
         const handleMouseOver = (e: MouseEvent) => {
-            const cell = (e.target as HTMLElement).closest('td');
-            if (!cell || !table.contains(cell) || cell.classList.contains('sticky')) return;
-    
-            cleanupClasses();
-    
-            const row = cell.parentElement as HTMLTableRowElement;
-            const colIndex = cell.cellIndex;
-    
-            row.classList.add('schedule-highlight-row-hover');
-            
-            Array.from(table.rows).forEach((r: HTMLTableRowElement) => {
-                if (r.cells[colIndex]) {
-                    r.cells[colIndex].classList.add('schedule-highlight-col-hover');
+             if (rafId) cancelAnimationFrame(rafId);
+
+             rafId = requestAnimationFrame(() => {
+                const target = e.target as HTMLElement;
+                const cell = target.closest('td, th') as HTMLTableCellElement | null;
+                
+                // Remove existing highlights first
+                const existing = table.querySelectorAll('.schedule-highlight-row-hover, .schedule-highlight-col-hover');
+                existing.forEach(el => {
+                    el.classList.remove('schedule-highlight-row-hover', 'schedule-highlight-col-hover');
+                });
+
+                if (!cell || !table.contains(cell)) return;
+                
+                // Ignore sticky first column for column highlighting, but allow for row highlighting
+                const isFirstColumn = cell.cellIndex === 0;
+                
+                if (!isFirstColumn) {
+                    const row = cell.parentElement as HTMLTableRowElement;
+                    row.classList.add('schedule-highlight-row-hover');
+
+                    const colIndex = cell.cellIndex;
+                    for (let i = 0; i < table.rows.length; i++) {
+                        const r = table.rows[i];
+                        if (r.cells[colIndex]) {
+                            r.cells[colIndex].classList.add('schedule-highlight-col-hover');
+                        }
+                    }
+                } else {
+                     // If hovering over name (sticky column), only highlight row
+                    const row = cell.parentElement as HTMLTableRowElement;
+                    row.classList.add('schedule-highlight-row-hover');
                 }
-            });
+             });
         };
-    
-        const handleMouseLeave = (e: MouseEvent) => {
-            if (!table.contains(e.relatedTarget as Node)) {
-                cleanupClasses();
-            }
+
+        const handleMouseLeave = () => {
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = requestAnimationFrame(() => {
+                const existing = table.querySelectorAll('.schedule-highlight-row-hover, .schedule-highlight-col-hover');
+                existing.forEach(el => {
+                    el.classList.remove('schedule-highlight-row-hover', 'schedule-highlight-col-hover');
+                });
+            });
         };
         
         table.addEventListener('mouseover', handleMouseOver);
@@ -387,6 +406,7 @@ const Schedule: React.FC = () => {
         return () => {
             table.removeEventListener('mouseover', handleMouseOver);
             table.removeEventListener('mouseleave', handleMouseLeave);
+            if (rafId) cancelAnimationFrame(rafId);
         };
     }, [settings.highlightOnHover]);
     
@@ -1291,7 +1311,7 @@ const Schedule: React.FC = () => {
 
                         return (
                             <td key={day} 
-                                className={`p-0 text-center border-b border-r border-border-color transition-opacity
+                                className={`p-0 text-center border-b border-r border-border-color transition-opacity relative
                                     ${isWeekend ? 'schedule-weekend-glow' : ''}
                                     ${isAbsence && !isAbsenceStart ? 'border-l-transparent' : ''} 
                                     ${isAbsence && !isAbsenceEnd ? 'border-r-transparent' : ''}

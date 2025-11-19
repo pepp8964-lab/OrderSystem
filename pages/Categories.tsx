@@ -770,7 +770,9 @@ const Categories: React.FC = () => {
                 <div className="space-y-4">
                     {sortedRenderableItems.map((item, groupIndex) => {
                         const isGroup = item.children && item.children.length > 0;
-                        const groupNumber = groupIndex + 1;
+                        // Update: All categories now visually under "1."
+                        const groupNumber = `1.${groupIndex + 1}`;
+                        
                         return (
                             <div key={item.id}
                                 draggable={!showArchived}
@@ -782,7 +784,7 @@ const Categories: React.FC = () => {
                                 <Card className="p-4 space-y-3">
                                     <div className="flex items-center gap-2 group">
                                         <ReorderIcon className="w-5 h-5 text-secondary-text cursor-grab" />
-                                        <span className="font-mono text-xl text-secondary-text">{groupNumber}.</span>
+                                        <span className="font-mono text-xl text-secondary-text">{groupNumber}</span>
                                         {isGroup && (
                                             <button onClick={() => toggleCollapse(item.id)} className="p-1 rounded-full hover:bg-secondary">
                                                 {item.isCollapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
@@ -808,7 +810,7 @@ const Categories: React.FC = () => {
                                     </div>
                                     
                                     <div>
-                                        <CategoryRow category={item} numberPrefix={`${groupNumber}.1`} isDraggable={false} />
+                                        <CategoryRow category={item} numberPrefix={`${groupNumber}`} isDraggable={false} />
 
                                         {isGroup && !item.isCollapsed && (
                                             <div className="category-children-container space-y-2 pt-2">
@@ -821,7 +823,8 @@ const Categories: React.FC = () => {
                                                         onDragEnd={(e) => { e.stopPropagation(); handleDragSort(); }}
                                                         onDragOver={(e) => e.preventDefault()}
                                                     >
-                                                        <CategoryRow category={child} numberPrefix={`${groupNumber}.${childIndex + 2}`} isChild isDraggable />
+                                                        {/* Children don't get a number prefix in this specific visual request */}
+                                                        <CategoryRow category={child} numberPrefix={``} isChild isDraggable />
                                                     </div>
                                                 ))}
                                             </div>

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useCallback, use
 import useLocalStorage from '../hooks/useLocalStorage';
 
 // Theme Context
-export type Theme = 'dark' | 'white' | 'mint' | 'mint-dark' | 'navy' | 'navy-dark' | 'rose' | 'rose-dark' | 'orange' | 'orange-dark' | 'vibrant-dark' | 'interactive' | 'bw' | 'br' | 'bb' | 'by' | 'military' | 'matrica' | 'stalker' | 'prime' | 'robot' | 'cowboy' | 'fall' | 'christmas' | 'valentine' | 'halloween' | 'grass' | 'candy' | 'potter' | 'spotlight';
+export type Theme = 'dark' | 'white' | 'ocean' | 'wood' | 'candy' | 'christmas' | 'harry-potter' | 'paper' | 'military' | 'matrix' | 'halloween' | 'strong';
 
 
 interface ThemeContextType {
@@ -18,22 +18,24 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const settingsItem = localStorage.getItem('app-settings');
             if (settingsItem) {
                 const settings = JSON.parse(settingsItem);
-                if (settings.defaultTheme) {
+                // Basic validation to ensure it's a valid string, though not strict enum check here
+                if (settings.defaultTheme && typeof settings.defaultTheme === 'string') {
                     return settings.defaultTheme;
                 }
             }
         } catch (e) { 
             console.error("Could not parse settings to get default theme", e);
         }
-        return 'halloween';
+        return 'dark';
     };
 
     const [theme, setTheme] = useLocalStorage<'black' | Theme>('app-theme', getDefaultTheme());
 
-    const effectiveTheme = theme === 'black' ? 'dark' : theme;
+    // Fallback for legacy 'black' theme or invalid themes
+    const effectiveTheme = (theme === 'black') ? 'dark' : theme;
     
     const contextValue = useMemo(() => ({
-        theme: effectiveTheme,
+        theme: effectiveTheme as Theme,
         setTheme: setTheme as (theme: Theme) => void,
     }), [effectiveTheme, setTheme]);
 

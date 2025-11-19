@@ -205,7 +205,7 @@ const UpdatesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const App: React.FC = () => {
   const { theme } = useTheme();
-  const [isInitialized, setIsInitialized] = useState(!!localStorage.getItem('unitName'));
+  const [isInitialized, setIsInitialized] = useState(false);
   const [showUpdatesModal, setShowUpdatesModal] = useState(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false);
   const { showToast } = useToast();
@@ -214,6 +214,18 @@ const App: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Fix for JSON parsing error on initial load
+  useEffect(() => {
+      const unitName = localStorage.getItem('unitName');
+      if (unitName) {
+          // Check if it looks like a raw string (not JSON)
+          if (!unitName.startsWith('"') && !unitName.startsWith('{')) {
+              localStorage.setItem('unitName', JSON.stringify(unitName));
+          }
+          setIsInitialized(true);
+      }
+  }, []);
 
   useEffect(() => {
     const markAsDirty = () => setIsDirty(true);
@@ -225,7 +237,7 @@ const App: React.FC = () => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
-        e.returnValue = '';
+        e.returnValue = 'У вас є незбережені зміни. Ви впевнені, що хочете закрити сторінку?';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -235,7 +247,7 @@ const App: React.FC = () => {
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(`theme-${theme}`);
-    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by', 'military', 'matrica', 'stalker', 'prime', 'robot', 'cowboy', 'fall', 'christmas', 'valentine', 'halloween', 'grass', 'candy', 'potter', 'spotlight'].includes(theme)) {
+    if (['vibrant-dark', 'dark', 'bw', 'br', 'bb', 'by', 'military', 'matrica', 'stalker', 'prime', 'robot', 'cowboy', 'fall', 'christmas', 'valentine', 'halloween', 'grass', 'candy', 'potter', 'spotlight', 'cyberpunk', 'paper', 'ocean', 'sunset', 'terminal'].includes(theme)) {
       // These themes manage their own complex backgrounds via body.theme-xyz selectors in CSS
     } else {
       document.body.classList.add('bg-gradient-to-br', 'from-primary', 'to-secondary', 'transition-colors', 'duration-500');
@@ -310,6 +322,7 @@ const App: React.FC = () => {
                     settings: JSON.parse(localStorage.getItem('app-settings') || '{}'),
                     subdivisions: JSON.parse(localStorage.getItem('subdivisions') || '[]'),
                     customWeaponTypes: JSON.parse(localStorage.getItem('custom-weapon-types') || '[]'),
+                    commander: JSON.parse(localStorage.getItem('commander') || 'null'),
                 };
 
                 const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(dataToExport, null, 2))}`;
@@ -343,7 +356,7 @@ const App: React.FC = () => {
   }, [settings.autoSaveInterval]);
   
   const handleInitialize = (unitName: string, data?: AllData) => {
-    const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName'];
+    const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName', 'commander'];
     projectKeys.forEach(key => localStorage.removeItem(key));
 
     if (data) {
@@ -354,6 +367,7 @@ const App: React.FC = () => {
         if (data.settings) localStorage.setItem('app-settings', JSON.stringify(data.settings));
         if (data.subdivisions) localStorage.setItem('subdivisions', JSON.stringify(data.subdivisions));
         if (data.customWeaponTypes) localStorage.setItem('custom-weapon-types', JSON.stringify(data.customWeaponTypes));
+        if (data.commander) localStorage.setItem('commander', JSON.stringify(data.commander));
         showToast("Проект успішно завантажено.");
     } else {
         localStorage.setItem('people', '[]');
@@ -365,7 +379,7 @@ const App: React.FC = () => {
         showToast("Створено новий порожній розклад.");
     }
     
-    localStorage.setItem('unitName', unitName);
+    localStorage.setItem('unitName', JSON.stringify(unitName));
     setIsInitialized(true);
     setShowUpdatesModal(true);
     setIsDirty(false);
@@ -376,7 +390,7 @@ const App: React.FC = () => {
   };
   
   const confirmExitProject = () => {
-      const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName'];
+      const projectKeys = ['people', 'categories', 'schedules', 'weapons', 'app-settings', 'subdivisions', 'custom-weapon-types', 'action-logs', 'unitName', 'commander'];
       projectKeys.forEach(key => localStorage.removeItem(key));
       setIsInitialized(false);
       setIsExitModalOpen(false);

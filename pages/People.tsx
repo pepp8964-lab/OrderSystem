@@ -9,180 +9,10 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { CheckIcon, TrashIcon, XIcon, SyncIcon, ViewGridIcon, ViewListIcon, ViewBlocksIcon, InfoIcon, FileImportIcon, UserPlusIcon, UsersIcon, DownloadIcon, LinkIcon, ChevronUpIcon, ChevronDownIcon, PhoneIcon, StarIcon, ChevronRightIcon } from '../components/icons/Icons';
 import PersonInfoModal from '../components/PersonInfoModal';
 import { getFileFromDB, getPhoto, savePhoto, deletePhoto } from '../utils/db';
+import { formatHierarchicalPositionForRoster, generateFullPosition, getHierarchicalPath } from '../utils/peopleUtils';
 
 
 declare const XLSX: any;
-
-const getHierarchicalPath = (person: Person, subdivisions: Subdivision[]): (Subdivision | { name: string, id: string })[] => {
-    if (!person || !person.position) return [];
-  
-    const path: (Subdivision | { name: string, id: string })[] = [{ name: person.position, id: 'person_position' }];
-    if (!person.subdivisionRowIndex || subdivisions.length === 0) return path;
-
-    const subMap = new Map(subdivisions.map(s => [s.id, s]));
-    
-    const directSub = subdivisions
-      .filter(s => s.rowIndex <= person.subdivisionRowIndex!)
-      .sort((a, b) => b.rowIndex - a.rowIndex)[0];
-  
-    if (!directSub) return path;
-  
-    let currentSub: Subdivision | undefined = directSub;
-    while (currentSub) {
-      path.push(currentSub);
-      currentSub = currentSub.parentId ? subMap.get(currentSub.parentId) : undefined;
-    }
-    
-    return path;
-};
-
-const declinePhraseToGenitive = (phrase: string): string => {
-    const lowerPhrase = phrase.toLowerCase().trim();
-    const STOP_WORDS = new Set(['і', 'та', 'в', 'у', 'на', 'з', 'до', 'під', 'при', 'про', 'без', 'для', 'від', 'над', 'по', 'через']);
-
-    const overrides: { [key: string]: string } = {
-        // Full phrases
-        'технічне обслуговування': 'технічного обслуговування',
-        'матеріальне забезпечення': 'матеріального забезпечення',
-        'інформаційно-телекомунікаційний вузол': 'інформаційно-телекомунікаційного вузла',
-        'роди військ': 'родів військ',
-        'логістичне забезпечення': 'логістичного забезпечення',
-        'колективна підготовка': 'колективної підготовки',
-        'головний сержант': 'головного сержанта',
-        
-        // Single words - Nouns
-        'вузол': 'вузла', 'наглядач': 'наглядача', 'механік': 'механіка', 'начальник': 'начальника',
-        'електростанція': 'електростанції', 'штаб': 'штабу', 'взвод': 'взводу', 'батальйон': 'батальйону',
-        'полк': 'полку', 'центр': 'центру', 'відділ': 'відділу', 'відділок': 'відділку',
-        'частина': 'частини', 'рота': 'роти', 'служба': 'служби', 'група': 'групи',
-        'школа': 'школи', 'сержант': 'сержанта', 'інструктор': 'інструктора',
-        'підрозділ': 'підрозділу', 'рід': 'роду', 'військо': 'війська',
-        
-        // Plural Nouns (Nominative -> Genitive)
-        'телекомунікації': 'телекомунікацій', 'підрозділи': 'підрозділів', 'війська': 'військ',
-        'роди': 'родів', 'школи': 'шкіл',
-
-        // Adjectives
-        'технічний': 'технічного', 'технічна': 'технічної', 'технічне': 'технічного',
-        'матеріальний': 'матеріального', 'матеріальна': 'матеріальної', 'матеріальне': 'матеріального',
-        'автомобільний': 'автомобільного', 'інформаційно-телекомунікаційний': 'інформаційно-телекомунікаційного',
-        'лінійний': 'лінійного', 'старший': 'старшого', 'логістичний': 'логістичного',
-        'колективний': 'колективного', 'логістична': 'логістичної', 'колективна': 'колективної',
-        'логістичне': 'логістичного', 'колективне': 'колективного',
-
-        // Nouns that don't change or are already genitive
-        'управління': 'управління', 'відділення': 'відділення', 'забезпечення': 'забезпечення',
-        'підготовки': 'підготовки', 'зв\'язку': 'зв\'язку', 'озброєння': 'озброєння',
-        'військ': 'військ', 'родів': 'родів', 'підрозділів': 'підрозділів',
-        'обслуговування': 'обслуговування'
-    };
-
-    if (overrides[lowerPhrase]) {
-        return overrides[lowerPhrase];
-    }
-    
-    const words = lowerPhrase.split(' ').filter(Boolean);
-    const declinedWords = words.map(word => {
-        if (STOP_WORDS.has(word)) return word;
-        if (overrides[word]) return overrides[word];
-        if (!isNaN(parseInt(word))) return word;
-
-        // --- Minimal fallback rules for common patterns ---
-        
-        // Adjectives
-        if (word.endsWith('ий') || word.endsWith('ій')) return word.slice(0, -2) + 'ого';
-        
-        // Nouns
-        if (word.endsWith('ція')) return word.slice(0, -2) + 'ції';
-        if (word.endsWith('ія')) return word.slice(0, -2) + 'ії';
-        if (word.endsWith('а')) return word.slice(0, -1) + 'и';
-        if (word.endsWith('я')) return word.slice(0, -1) + 'і';
-        if (word.endsWith('о')) return word.slice(0, -1) + 'а';
-        if (/[бвгґджзклмнпрстфхцчшщ]$/.test(word) && !word.endsWith('ів') && !word.endsWith('ськ')) {
-            return word + 'у';
-        }
-        
-        return word;
-    });
-    
-    return declinedWords.join(' ');
-};
-
-const getNounFromPhrase = (phrase: string): string => {
-    const words = phrase.split(' ');
-    return words[words.length - 1];
-};
-
-const areSameRoot = (word1: string, word2: string): boolean => {
-    const shorter = word1.length < word2.length ? word1 : word2;
-    const longer = word1.length < word2.length ? word2 : word1;
-    return longer.startsWith(shorter) && shorter.length > 3;
-};
-
-const removeLogicalDuplicates = (phrase: string): string => {
-    const words = phrase.split(' ');
-    if (words.length < 2) {
-        return phrase;
-    }
-    const uniqueWords = words.reduce<string[]>((acc, word) => {
-        if (acc.length === 0 || acc[acc.length - 1].toLowerCase() !== word.toLowerCase()) {
-            acc.push(word);
-        }
-        return acc;
-    }, []);
-    return uniqueWords.join(' ');
-};
-
-export const formatHierarchicalPositionForRoster = (person: Person, subdivisions: Subdivision[]): string => {
-    if (person.customFullPosition) return person.customFullPosition.toLowerCase();
-    
-    const path = getHierarchicalPath(person, subdivisions);
-    if (path.length === 0) return '';
-    
-    let basePosition = path[0].name.toLowerCase();
-    const subs = path.slice(1).filter((item): item is Subdivision => 'rowIndex' in item);
-
-    let usedFirstSub = false;
-
-    if (subs.length > 0) {
-        const firstSub = subs[0];
-        const firstSubNoun = getNounFromPhrase(firstSub.name);
-        
-        const baseWords = basePosition.split(/(\s|-)/);
-        let matchFound = false;
-        
-        const newBaseWords = baseWords.map(word => {
-            const cleanWord = word.replace(/[^а-яА-Яїієґ-]/g, '');
-            if (!matchFound && areSameRoot(cleanWord, firstSubNoun)) {
-                matchFound = true;
-                usedFirstSub = true;
-                return firstSub.genitiveCaseName || declinePhraseToGenitive(firstSub.name);
-            }
-            return word;
-        });
-        
-        if (matchFound) {
-            basePosition = newBaseWords.join('');
-        }
-    }
-
-    const remainingSubs = usedFirstSub ? subs.slice(1) : subs;
-    const allParts = [basePosition, ...remainingSubs.map(s => s.genitiveCaseName || declinePhraseToGenitive(s.name))];
-    
-    const combined = allParts.join(' ').replace(/\s+/g, ' ');
-    const finalString = removeLogicalDuplicates(combined);
-    
-    return finalString;
-};
-
-
-export const generateFullPosition = (person: Person, subdivisions: Subdivision[]): string => {
-    if (!person || !person.position) return '';
-    if (person.customFullPosition) return person.customFullPosition.toLowerCase();
-  
-    const path = getHierarchicalPath(person, subdivisions);
-    return path.map(p => `(${p.name.trim().toLowerCase()})`).join(' ');
-};
 
 type ImportedPersonData = { 
     fullName: string; 
@@ -926,6 +756,179 @@ const ImportModal: React.FC<{ onImport: (people: ImportedPersonData[]) => void; 
     );
 };
 
+const ActualizationModal: React.FC<{ people: Person[]; setPeople: React.Dispatch<React.SetStateAction<Person[]>>; onCancel: () => void }> = ({ people, setPeople, onCancel }) => {
+    const [file, setFile] = useState<File | null>(null);
+    const [conflicts, setConflicts] = useState<ActualizationConflict[]>([]);
+    const [step, setStep] = useState<'upload' | 'review'>('upload');
+    const { showToast } = useToast();
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.[0]) setFile(e.target.files[0]);
+    };
+
+    const handleAnalyze = async () => {
+        if (!file) return;
+        try {
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            const settingsStr = localStorage.getItem('excel-import-settings');
+            const settings: ExcelMapping = settingsStr ? JSON.parse(settingsStr) : {
+                fullName: 'L', rank: 'J', position: 'F', subdivision: 'E', tin: 'X', phone: '', lastName: '', firstName: '', patronymic: '', dobFull: '', dobDay: '', dobMonth: '', dobYear: ''
+            };
+            
+            const getColIndex = (col: string) => {
+                if (!col) return -1;
+                let result = 0;
+                for (let i = 0; i < col.length; i++) {
+                    result *= 26;
+                    result += col.charCodeAt(i) - 64;
+                }
+                return result - 1;
+            };
+
+            const colMap = {
+                fullName: getColIndex(settings.fullName),
+                rank: getColIndex(settings.rank),
+                position: getColIndex(settings.position),
+                subdivision: getColIndex(settings.subdivision),
+                tin: getColIndex(settings.tin),
+            };
+            
+            const newConflicts: ActualizationConflict[] = [];
+            const peopleMap = new Map(people.map(p => [p.tin, p]));
+            const nameMap = new Map(people.map(p => [p.fullName.toLowerCase(), p]));
+
+            for (let i = 1; i < jsonData.length; i++) {
+                 const row = jsonData[i];
+                 if (!row) continue;
+                 
+                 const tin = colMap.tin !== -1 ? String(row[colMap.tin] || '').trim() : '';
+                 const fullName = colMap.fullName !== -1 ? String(row[colMap.fullName] || '').trim() : '';
+                 
+                 let person = tin ? peopleMap.get(tin) : null;
+                 if (!person && fullName) {
+                     person = nameMap.get(fullName.toLowerCase());
+                 }
+
+                 if (person) {
+                     const newRank = colMap.rank !== -1 ? String(row[colMap.rank] || '').trim() : '';
+                     const newPosition = colMap.position !== -1 ? String(row[colMap.position] || '').trim() : '';
+                     const newSubdivision = colMap.subdivision !== -1 ? String(row[colMap.subdivision] || '').trim() : '';
+                     const excelRow = i + 1;
+
+                     const hasRankChange = newRank && normalizeRank(newRank) !== normalizeRank(person.rank);
+                     const hasPositionChange = newPosition && newPosition !== person.position;
+                     const hasSubdivisionChange = newSubdivision && newSubdivision !== person.subdivision;
+                     const hasRowIndexChange = excelRow !== person.subdivisionRowIndex;
+
+                     if (hasRankChange || hasPositionChange || hasSubdivisionChange || hasRowIndexChange) {
+                         newConflicts.push({
+                             type: 'personUpdate',
+                             key: person.id,
+                             existing: person,
+                             incoming: {
+                                 rank: newRank || person.rank,
+                                 position: newPosition || person.position,
+                                 subdivision: newSubdivision || person.subdivision || '',
+                                 subdivisionRowIndex: excelRow,
+                                 lastName: person.lastName,
+                                 firstName: person.firstName,
+                                 patronymic: person.patronymic
+                             },
+                             resolution: 'update'
+                         });
+                     }
+                 }
+            }
+            
+            setConflicts(newConflicts);
+            setStep('review');
+            if (newConflicts.length === 0) {
+                showToast("Змін не виявлено.");
+            }
+
+        } catch (error) {
+            console.error(error);
+            showToast("Помилка обробки файлу.");
+        }
+    };
+
+    const handleApply = () => {
+        setPeople(prev => {
+            const updatesMap = new Map(conflicts.filter(c => c.resolution === 'update').map(c => [c.existing.id, c.incoming]));
+            return prev.map(p => {
+                if (updatesMap.has(p.id)) {
+                    const update = updatesMap.get(p.id)!;
+                    const newRank = normalizeRank(update.rank);
+                    return {
+                        ...p,
+                        rank: newRank,
+                        rankCategory: getRankCategory(newRank) || p.rankCategory,
+                        position: update.position,
+                        subdivision: update.subdivision,
+                        subdivisionRowIndex: update.subdivisionRowIndex
+                    };
+                }
+                return p;
+            });
+        });
+        showToast(`Оновлено ${conflicts.filter(c => c.resolution === 'update').length} осіб.`);
+        onCancel();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onCancel}>
+            <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-color">
+                    <h2 className="text-xl font-bold text-header">Актуалізація даних</h2>
+                </div>
+                <div className="p-4 flex-grow overflow-y-auto">
+                    {step === 'upload' ? (
+                        <div className="space-y-4">
+                            <p className="text-primary-text">Завантажте актуальний файл штату (Excel) для оновлення звань, посад та підрозділів існуючих людей.</p>
+                            <input type="file" onChange={handleFileChange} accept=".xlsx, .xls" className="w-full text-primary-text" />
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                             <p className="text-primary-text mb-2">Знайдено {conflicts.length} змін.</p>
+                             {conflicts.map(c => (
+                                 <div key={c.key} className="bg-secondary p-2 rounded border border-border-color flex justify-between items-center text-sm">
+                                     <div className="flex-grow">
+                                         <p className="font-bold text-header">{c.existing.fullName}</p>
+                                         <div className="grid grid-cols-2 gap-x-4 text-secondary-text mt-1">
+                                             <div className="flex gap-1"><span>Звання:</span> <span>{c.existing.rank} &rarr; <span className={c.existing.rank !== c.incoming.rank ? "text-accent" : ""}>{c.incoming.rank}</span></span></div>
+                                             <div className="flex gap-1"><span>Посада:</span> <span>{c.existing.position} &rarr; <span className={c.existing.position !== c.incoming.position ? "text-accent" : ""}>{c.incoming.position}</span></span></div>
+                                             <div className="flex gap-1"><span>Підрозділ:</span> <span>{c.existing.subdivision} &rarr; <span className={c.existing.subdivision !== c.incoming.subdivision ? "text-accent" : ""}>{c.incoming.subdivision}</span></span></div>
+                                             <div className="flex gap-1"><span>Рядок:</span> <span>{c.existing.subdivisionRowIndex} &rarr; <span className={c.existing.subdivisionRowIndex !== c.incoming.subdivisionRowIndex ? "text-accent" : ""}>{c.incoming.subdivisionRowIndex}</span></span></div>
+                                         </div>
+                                     </div>
+                                     <div className="ml-4">
+                                         <input type="checkbox" checked={c.resolution === 'update'} onChange={() => {
+                                             setConflicts(prev => prev.map(xc => xc.key === c.key ? { ...xc, resolution: xc.resolution === 'update' ? 'keep' : 'update' } : xc));
+                                         }} className="h-5 w-5 rounded border-gray-300 text-accent focus:ring-accent"/>
+                                     </div>
+                                 </div>
+                             ))}
+                        </div>
+                    )}
+                </div>
+                <div className="p-4 border-t border-border-color flex justify-end gap-2">
+                    <button onClick={onCancel} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color text-primary-text">Скасувати</button>
+                    {step === 'upload' ? (
+                        <button onClick={handleAnalyze} disabled={!file} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover disabled:opacity-50">Аналізувати</button>
+                    ) : (
+                        <button onClick={handleApply} className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-hover">Застосувати ({conflicts.filter(c => c.resolution === 'update').length})</button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const FullPositionModal: React.FC<{ person: Person; onClose: () => void; onSave: (personId: string, customPosition: string) => void; subdivisions: Subdivision[]; }> = ({ person, onClose, onSave, subdivisions }) => {
     const [editedPosition, setEditedPosition] = useState('');
 
@@ -1024,7 +1027,7 @@ const People: React.FC = () => {
         if (highlight === 'newlyImported' && newlyImportedRef.current) {
             newlyImportedRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             setIsHighlighting(true);
-            const timer = setTimeout(() => setIsHighlighting(false), 2000); // Animation is 0.8s * 2 = 1.6s
+            const timer = setTimeout(() => setIsHighlighting(false), 2000);
             return () => clearTimeout(timer);
         }
     }, [searchParams]);
@@ -1202,7 +1205,6 @@ const People: React.FC = () => {
     const handleConfirmDelete = () => {
         if (!personToDelete) return;
         
-        // Clear future duties
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayDate = today.getDate();
@@ -1220,14 +1222,12 @@ const People: React.FC = () => {
                          const personSchedule = newSchedules[catId][yearMonth][personToDelete.id];
                         if (personSchedule) {
                             if (year === todayYear && month - 1 === todayMonth) {
-                                // Current month, delete from today onwards
                                 for (const day in personSchedule) {
                                     if (parseInt(day) >= todayDate) {
                                         delete personSchedule[day];
                                     }
                                 }
                             } else {
-                                // Future month, delete all
                                 delete newSchedules[catId][yearMonth][personToDelete.id];
                             }
                         }
@@ -1245,13 +1245,12 @@ const People: React.FC = () => {
             logAction(`Архівувано "${personToDelete.fullName}"`);
             setPersonToDelete(null);
             setDeletingId(null);
-        }, 500); // Corresponds to animation duration
+        }, 500); 
     };
 
     const handleConfirmPermanentDelete = async () => {
         if (!personToPermanentlyDelete) return;
         
-        // Clear all duties for the person being deleted
         setSchedules(prevSchedules => {
             const newSchedules = JSON.parse(JSON.stringify(prevSchedules));
             for (const catId in newSchedules) {
@@ -1308,7 +1307,6 @@ const People: React.FC = () => {
         setIsImporting(false);
     };
     
-    // --- Data Lists ---
     const newlyImportedPeople = useMemo(() => people.filter(p => p.isNew && !p.deletedTimestamp).sort((a,b) => a.fullName.localeCompare(b.fullName)), [people]);
     const approvedPeople = useMemo(() => people.filter(p => !p.isNew && !p.deletedTimestamp), [people]);
     const archivedPeople = useMemo(() => people.filter(p => p.deletedTimestamp), [people]);
@@ -1382,8 +1380,6 @@ const People: React.FC = () => {
             .sort((a,b) => a.fullName.localeCompare(b.fullName))
     }, [archivedPeople, searchTerm]);
 
-
-    // --- Selection Logic ---
     const cancelSelectionMode = () => {
         setSelectionModeFor(null);
         setSelection([]);
@@ -1394,7 +1390,7 @@ const People: React.FC = () => {
         selectionTimeout.current = window.setTimeout(() => {
             setSelectionModeFor(context);
             setSelection(prev => [...prev, personId]);
-        }, 500); // 500ms for long press
+        }, 500);
     };
 
     const handleCardMouseUp = () => {
@@ -1424,7 +1420,6 @@ const People: React.FC = () => {
         }
     }
     
-    // --- Bulk Actions ---
     const handleBulkApprove = () => {
         let approvedCount = 0;
         setPeople(prev => prev.map(p => {
@@ -1535,16 +1530,16 @@ const People: React.FC = () => {
         };
 
         if (person.type === 'subdivision') {
-            const currentStats = subdivisionStats.get(person.fullName);
-            return (
-                <Card 
-                     className={`${cardClasses[viewMode]} transition-all duration-300 relative ${isSelectionMode ? 'cursor-pointer' : ''} ${context === 'archived' ? 'opacity-60' : ''} ${context === 'new' ? '!border-2 !border-red-500' : ''} ${isSelected && selectionModeFor === context ? 'ring-2 ring-accent' : ''} ${shouldAnimate ? 'animate-pulse-attention' : ''} ${isBeingDeleted ? 'is-deleting' : ''}`}
-                     onMouseDown={() => handleCardMouseDown(person.id, context)}
-                     onMouseUp={handleCardMouseUp}
-                     onMouseLeave={handleCardMouseUp}
-                     onClick={() => handleCardClick(person.id)}
-                >
-                    <div>
+             const currentStats = subdivisionStats.get(person.fullName);
+             return (
+                 <Card 
+                      className={`${cardClasses[viewMode]} transition-all duration-300 relative ${isSelectionMode ? 'cursor-pointer' : ''} ${context === 'archived' ? 'opacity-60' : ''} ${context === 'new' ? '!border-2 !border-red-500' : ''} ${isSelected && selectionModeFor === context ? 'ring-2 ring-accent' : ''} ${shouldAnimate ? 'animate-pulse-attention' : ''} ${isBeingDeleted ? 'is-deleting' : ''}`}
+                      onMouseDown={() => handleCardMouseDown(person.id, context)}
+                      onMouseUp={handleCardMouseUp}
+                      onMouseLeave={handleCardMouseUp}
+                      onClick={() => handleCardClick(person.id)}
+                 >
+                     <div>
                         <h3 className={`text-lg font-bold text-header ${isSelectionMode && selectionModeFor === context ? 'ml-6' : ''}`}>{person.fullName}</h3>
                         <div className="mt-4 space-y-2 text-sm">
                             <div className="flex justify-between items-center">
@@ -1570,8 +1565,8 @@ const People: React.FC = () => {
                             </>
                         )}
                     </div>
-                </Card>
-            )
+                 </Card>
+             )
         }
 
         return (
@@ -1582,7 +1577,7 @@ const People: React.FC = () => {
                 onMouseLeave={handleCardMouseUp}
                 onClick={() => handleCardClick(person.id)}
             >
-                {isSelectionMode && selectionModeFor === context && (
+                 {isSelectionMode && selectionModeFor === context && (
                      <div className={`absolute top-2 left-2 w-5 h-5 rounded border-2 ${isSelected ? 'bg-accent border-accent' : 'bg-card border-secondary-text'} flex items-center justify-center`}>
                         {isSelected && <CheckIcon />}
                     </div>
@@ -1622,7 +1617,7 @@ const People: React.FC = () => {
                         </div>
                      ) : (
                          <div className="flex flex-col items-center">
-                             <div className="relative flex-shrink-0 mb-2">
+                              <div className="relative flex-shrink-0 mb-2">
                                <div className="w-20 h-20 rounded-full bg-secondary bg-cover bg-center border-2 border-border-color/50" style={{ backgroundImage: `url(${photoUrl})` }}>
                                   {!photoUrl && <UsersIcon className="w-10 h-10 text-secondary-text m-4" />}
                                </div>
@@ -1897,369 +1892,5 @@ const People: React.FC = () => {
         </div>
     );
 };
-
-const ActualizationModal: React.FC<{
-    people: Person[];
-    setPeople: React.Dispatch<React.SetStateAction<Person[]>>;
-    onCancel: () => void;
-}> = ({ people, setPeople, onCancel }) => {
-    const [file, setFile] = useState<File | null>(null);
-    const [columns] = useLocalStorage<ExcelMapping>('excel-import-settings', { fullName: '', lastName: '', firstName: '', patronymic: '', phone: '', rank: '', position: '', tin: '', subdivision: '', dobFull: '', dobDay: '', dobMonth: '', dobYear: '' });
-    const [ignoreRowsBelow] = useLocalStorage<number>('excel-import-ignore-rows', 0);
-    const [conflicts, setConflicts] = useState<ActualizationConflict[]>([]);
-    const [currentConflictIndex, setCurrentConflictIndex] = useState(-1);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [processingProgress, setProcessingProgress] = useState(0);
-    const [notFoundInFile, setNotFoundInFile] = useState<Person[]>([]);
-    const [step, setStep] = useState<'initial' | 'conflict' | 'summary'>('initial');
-    const [checkedCount, setCheckedCount] = useState(0);
-    const [noChangesCount, setNoChangesCount] = useState(0);
-    const { showToast } = useToast();
-    const { logAction } = useActionLog();
-
-    useEffect(() => {
-        const loadCachedFile = async () => {
-            try {
-                const cachedFile = await getFileFromDB();
-                setFile(cachedFile);
-            } catch (e) {
-                console.error("Failed to load cached file for actualization", e);
-            }
-        };
-        loadCachedFile();
-    }, []);
-    
-    const startActualization = async () => {
-        if (!file || !columns.rank || !columns.position || !columns.tin || !columns.subdivision) {
-            showToast("Будь ласка, завантажте файл та налаштуйте всі стовпці на головній панелі.");
-            return;
-        }
-        setIsProcessing(true);
-        setProcessingProgress(0);
-
-        try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            const getColIndex = (col: string): number => {
-                if (!col || typeof col !== 'string') return -1;
-                const normalizedCol = col.toUpperCase();
-                let result = 0;
-                for (let i = 0; i < normalizedCol.length; i++) {
-                    result *= 26;
-                    result += normalizedCol.charCodeAt(i) - 64; // A=1, B=2
-                }
-                return result - 1;
-            };
-
-            const colMap = {
-                lastName: getColIndex(columns.lastName),
-                firstName: getColIndex(columns.firstName),
-                patronymic: getColIndex(columns.patronymic),
-                phone: getColIndex(columns.phone),
-                rank: getColIndex(columns.rank),
-                position: getColIndex(columns.position),
-                tin: getColIndex(columns.tin),
-                subdivision: getColIndex(columns.subdivision),
-                dobFull: getColIndex(columns.dobFull),
-                dobDay: getColIndex(columns.dobDay),
-                dobMonth: getColIndex(columns.dobMonth),
-                dobYear: getColIndex(columns.dobYear),
-            };
-
-            const fileDataByTin = new Map<string, { rank: string; position: string; subdivision: string; subdivisionRowIndex: number; dateOfBirth?: string; phone?: string; lastName: string; firstName: string; patronymic: string }>();
-            const stopRow = ignoreRowsBelow > 0 ? ignoreRowsBelow : jsonData.length;
-
-            for (let i = 1; i < stopRow; i++) {
-                const row = jsonData[i] as any[];
-                if (!row || !row[colMap.tin]) continue;
-                
-                const tin = String(row[colMap.tin]).trim();
-                if (tin) {
-                    let dob = '';
-                    if (colMap.dobFull !== -1 && row[colMap.dobFull]) {
-                         const dateValue = row[colMap.dobFull];
-                         if (typeof dateValue === 'number') {
-                            const excelEpoch = new Date(1899, 11, 30);
-                            const d = new Date(excelEpoch.getTime() + dateValue * 86400000);
-                            dob = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-                         } else if (typeof dateValue === 'string') {
-                             dob = dateValue;
-                         }
-                    } else if (colMap.dobDay !== -1 && colMap.dobMonth !== -1 && colMap.dobYear !== -1) {
-                        const day = String(row[colMap.dobDay] || '').padStart(2, '0');
-                        const month = String(row[colMap.dobMonth] || '').padStart(2, '0');
-                        const year = row[colMap.dobYear];
-                        if(day && month && year) dob = `${day}.${month}.${year}`;
-                    }
-
-                    fileDataByTin.set(tin, {
-                        rank: normalizeRank(String(row[colMap.rank] || '')),
-                        position: String(row[colMap.position] || ''),
-                        subdivision: String(row[colMap.subdivision] || ''),
-                        subdivisionRowIndex: i + 1,
-                        dateOfBirth: dob || undefined,
-                        phone: String(row[colMap.phone] || '').trim() || undefined,
-                        lastName: String(row[colMap.lastName] || '').trim(),
-                        firstName: String(row[colMap.firstName] || '').trim(),
-                        patronymic: String(row[colMap.patronymic] || '').trim(),
-                    });
-                }
-            }
-
-            const peopleToActualize = people.filter(p => p.type === 'person' && !p.deletedTimestamp && p.tin);
-            setCheckedCount(peopleToActualize.length);
-
-            const foundConflicts: ActualizationConflict[] = [];
-            const notFound: Person[] = [];
-            let noChanges = 0;
-
-            for (let i = 0; i < peopleToActualize.length; i++) {
-                const person = peopleToActualize[i];
-                const fileData = fileDataByTin.get(person.tin);
-
-                if (fileData) {
-                    const hasChanges = normalizeRank(person.rank) !== fileData.rank ||
-                                      person.position !== fileData.position ||
-                                      person.subdivision !== fileData.subdivision ||
-                                      (person.dateOfBirth || '') !== (fileData.dateOfBirth || '') ||
-                                      (person.phone || '') !== (fileData.phone || '') ||
-                                      (person.lastName || '') !== (fileData.lastName || '') ||
-                                      (person.firstName || '') !== (fileData.firstName || '') ||
-                                      (person.patronymic || '') !== (fileData.patronymic || '');
-
-                    if (hasChanges) {
-                        foundConflicts.push({
-                            type: 'personUpdate',
-                            key: person.tin,
-                            existing: person,
-                            incoming: fileData,
-                        });
-                    } else {
-                        noChanges++;
-                    }
-                } else {
-                    notFound.push(person);
-                }
-                
-                const progress = Math.round(((i + 1) / peopleToActualize.length) * 100);
-                setProcessingProgress(progress);
-                if (i % 10 === 0) { // Yield every 10 people
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-
-            setNoChangesCount(noChanges);
-            setNotFoundInFile(notFound);
-
-            if (foundConflicts.length > 0) {
-                setConflicts(foundConflicts);
-                setCurrentConflictIndex(0);
-                setStep('conflict');
-            } else {
-                showToast(`Перевірку завершено. ${noChanges} ос. мають актуальні дані. ${notFound.length} ос. не знайдено в файлі.`);
-                setStep('summary');
-            }
-
-        } catch (error) {
-            showToast("Помилка обробки файлу.");
-            console.error(error);
-        } finally {
-            setIsProcessing(false);
-        }
-    };
-
-    const finishActualization = (resolvedConflicts: ActualizationConflict[]) => {
-        let updateCount = 0;
-        const namesWithResetCategories: string[] = [];
-        
-        setPeople((currentPeople: Person[]) => {
-            const peopleMap = new Map(currentPeople.map(p => [p.id, p]));
-            resolvedConflicts.forEach(conflict => {
-                if (conflict.resolution === 'update') {
-                    const existingPerson = peopleMap.get(conflict.existing.id);
-                    if (existingPerson) {
-                        const { rank, position, subdivision, subdivisionRowIndex, dateOfBirth, phone, lastName, firstName, patronymic } = conflict.incoming;
-                        const newRankCategory = getRankCategory(rank);
-                        
-                        let categoryIds = existingPerson.categoryIds;
-                        if (existingPerson.rankCategory !== newRankCategory) {
-                            categoryIds = [];
-                            if (!namesWithResetCategories.includes(existingPerson.fullName)) {
-                                namesWithResetCategories.push(existingPerson.fullName);
-                            }
-                        }
-                        
-                        const patronymicInitial = patronymic ? `${patronymic.trim().charAt(0)}.` : '';
-                        const fullName = `${lastName.trim()} ${firstName.trim().charAt(0)}.${patronymicInitial}`;
-
-                        const updatedPerson: Person = {
-                            ...existingPerson,
-                            rank,
-                            position,
-                            rankCategory: newRankCategory,
-                            categoryIds,
-                            subdivision,
-                            subdivisionRowIndex,
-                            dateOfBirth,
-                            phone,
-                            lastName,
-                            firstName,
-                            patronymic,
-                            fullName
-                        };
-                        peopleMap.set(existingPerson.id, updatedPerson);
-                        updateCount++;
-                    }
-                }
-            });
-            return Array.from(peopleMap.values());
-        });
-
-        if (namesWithResetCategories.length > 0) {
-            showToast(`Для ${namesWithResetCategories.length} ос. скинуто категорії через зміну звання.`);
-            logAction(`Скинуто категорії для ${namesWithResetCategories.join(', ')}.`);
-        }
-        if (updateCount > 0) {
-            logAction(`Актуалізовано дані для ${updateCount} ос. з файлу.`);
-        }
-        setStep('summary');
-    };
-
-    const handleConflictResolved = (resolution: 'keep' | 'update') => {
-        const updatedConflicts = [...conflicts];
-        updatedConflicts[currentConflictIndex].resolution = resolution;
-        setConflicts(updatedConflicts);
-
-        if (currentConflictIndex < conflicts.length - 1) {
-            setCurrentConflictIndex(currentConflictIndex + 1);
-        } else {
-            finishActualization(updatedConflicts);
-        }
-    };
-    
-    if (step === 'summary') {
-        const updatedCount = conflicts.filter(c => c.resolution === 'update').length;
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-                <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
-                    <div className="p-4 border-b border-border-color"><h2 className="text-xl font-bold text-header">Результати актуалізації</h2></div>
-                    <div className="p-4 space-y-4 overflow-y-auto">
-                        <p className="text-lg font-semibold text-header">Актуалізацію завершено.</p>
-                        <div className="bg-secondary p-3 rounded-md border border-border-color space-y-2 text-primary-text">
-                           <p>Перевірено осіб: <strong>{checkedCount}</strong></p>
-                           <p className="text-green-400">Оновлено дані: <strong>{updatedCount}</strong></p>
-                           <p className="text-secondary-text">Дані збігаються (без змін): <strong>{noChangesCount}</strong></p>
-                        </div>
-                        {notFoundInFile.length > 0 && (
-                            <div>
-                                <h3 className="font-bold text-yellow-400 mb-2">Не знайдено в базі ({notFoundInFile.length} ос.):</h3>
-                                <div className="space-y-1 bg-secondary p-2 rounded-md max-h-60 overflow-y-auto border border-border-color">
-                                    {notFoundInFile.map(p => <p key={p.id} className="text-sm text-secondary-text">{p.fullName} (ІНН: {p.tin})</p>)}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex justify-end p-4 border-t border-border-color">
-                        <button onClick={onCancel} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary border border-border-color">Закрити</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    
-    if (step === 'conflict') {
-        const conflict = conflicts[currentConflictIndex];
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-                <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-2xl">
-                    <div className="p-4 border-b border-border-color"><h2 className="text-xl font-bold text-header">Актуалізація даних ({currentConflictIndex + 1}/{conflicts.length})</h2></div>
-                    <div className="p-4 space-y-4">
-                        <p className="text-primary-text">Знайдено розбіжність для <strong>{conflict.existing.fullName}</strong> (ІНН: {conflict.key})</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-secondary p-4 rounded-lg border border-border-color text-sm space-y-1">
-                                <h4 className="font-bold text-header mb-2">Існуючі дані</h4>
-                                <p>ПІБ: {conflict.existing.lastName} {conflict.existing.firstName} {conflict.existing.patronymic}</p>
-                                <p>Телефон: {conflict.existing.phone || 'N/A'}</p>
-                                <p>Звання: {conflict.existing.rank}</p>
-                                <p>Посада: {conflict.existing.position}</p>
-                                <p>Підрозділ: {conflict.existing.subdivision || 'N/A'}</p>
-                                <p>Д/Н: {conflict.existing.dateOfBirth || 'N/A'}</p>
-                            </div>
-                            <div className="bg-secondary p-4 rounded-lg border border-border-color text-sm space-y-1">
-                                <h4 className="font-bold text-header mb-2">Дані з файлу</h4>
-                                <p>ПІБ: {conflict.incoming.lastName} {conflict.incoming.firstName} {conflict.incoming.patronymic}</p>
-                                <p>Телефон: {conflict.incoming.phone || 'N/A'}</p>
-                                <p>Звання: {conflict.incoming.rank}</p>
-                                <p>Посада: {conflict.incoming.position}</p>
-                                <p>Підрозділ: {conflict.incoming.subdivision}</p>
-                                <p>Д/Н: {conflict.incoming.dateOfBirth || 'N/A'}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-4 border-t border-border-color flex justify-center gap-4">
-                        <button onClick={() => handleConflictResolved('keep')} className="bg-secondary px-6 py-2 rounded-lg hover:bg-primary border border-border-color">Залишити існуючі</button>
-                        <button onClick={() => handleConflictResolved('update')} className="bg-accent text-white px-6 py-2 rounded-lg hover:bg-accent-hover">Оновити</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-    
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onCancel}>
-            <div className="bg-card text-primary-text rounded-xl border border-border-color shadow-lg w-full max-w-lg" onClick={e => e.stopPropagation()}>
-                <div className="p-4 border-b border-border-color"><h2 className="text-xl font-bold text-header">Актуалізація даних з файлу</h2></div>
-                <div className="p-4 space-y-4">
-                     {file ? (
-                        <div className="w-full bg-secondary p-3 rounded-md border border-border-color text-center">
-                            <p className="text-secondary-text">Використовується поточна база:</p>
-                            <p className="font-bold text-primary-text">{file.name}</p>
-                        </div>
-                    ) : (
-                         <div className="w-full bg-secondary p-3 rounded-md border border-border-color text-center">
-                            <p className="text-secondary-text">Базу даних не завантажено на головній панелі.</p>
-                        </div>
-                    )}
-                    {columns.tin ? (
-                        <div className="bg-secondary p-3 rounded-md border border-border-color">
-                            <h4 className="font-bold text-header text-sm mb-2">Налаштування стовпців:</h4>
-                            <div className="text-xs text-secondary-text grid grid-cols-2 gap-x-4 gap-y-1">
-                                <span>Прізвище: <strong className="text-primary-text">{columns.lastName || '-'}</strong></span>
-                                <span>Ім'я: <strong className="text-primary-text">{columns.firstName || '-'}</strong></span>
-                                <span>По-батькові: <strong className="text-primary-text">{columns.patronymic || '-'}</strong></span>
-                                <span>Телефон: <strong className="text-primary-text">{columns.phone || '-'}</strong></span>
-                                <span>Звання: <strong className="text-primary-text">{columns.rank}</strong></span>
-                                <span>Посада: <strong className="text-primary-text">{columns.position}</strong></span>
-                                <span>ІНН: <strong className="text-primary-text">{columns.tin}</strong></span>
-                                <span>Д/Н: <strong className="text-primary-text">{columns.dobFull || `${columns.dobDay}/${columns.dobMonth}/${columns.dobYear}`}</strong></span>
-                            </div>
-                            <p className="text-xs text-secondary-text mt-2">Змінити налаштування можна на головній панелі.</p>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-secondary-text text-center">Налаштування стовпців не знайдено. Будь ласка, налаштуйте їх на головній панелі.</p>
-                    )}
-                    {isProcessing && (
-                        <div className="space-y-2">
-                            <p className="text-sm text-center">Перевірка {checkedCount} осіб... {processingProgress}%</p>
-                            <div className="w-full bg-secondary rounded-full h-2.5">
-                                <div className="bg-accent h-2.5 rounded-full" style={{ width: `${processingProgress}%`, transition: 'width 0.2s ease-in-out' }}></div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-                <div className="flex justify-end space-x-2 p-4 border-t border-border-color">
-                    <button type="button" onClick={onCancel} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary transition-colors border border-border-color">Скасувати</button>
-                    <button onClick={startActualization} disabled={isProcessing || !file || !columns.tin} className="bg-accent text-white px-4 py-2 rounded-md hover:bg-accent-hover disabled:bg-gray-500 transition-colors">
-                        {isProcessing ? "Обробка..." : "Перевірити"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 export default People;

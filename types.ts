@@ -131,6 +131,13 @@ export interface AppSettings {
     defaultTheme: Theme;
 }
 
+export interface Commander {
+    rank: string;
+    name: string; // Name Lastname
+    unitNumber: string;
+    isActing: boolean; // ТВО
+}
+
 export type AllData = {
     people?: Person[];
     categories?: Category[];
@@ -139,4 +146,5 @@ export type AllData = {
     settings?: AppSettings;
     subdivisions?: Subdivision[];
     customWeaponTypes?: CustomWeaponType[];
+    commander?: Commander;
 };
