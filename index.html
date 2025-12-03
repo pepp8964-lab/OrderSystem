@@ -11,24 +11,46 @@
         --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         --base-font-size: 13px;
         --user-text-primary-override: unset;
+        
+        /* Default transition settings */
+        --transition-speed: 0.3s;
       }
+      
       html {
         font-size: var(--base-font-size);
       }
-      :root, .theme-dark {
-        --color-bg-primary: #0f172a; /* slate-900 */
-        --color-bg-secondary: #1e293b; /* slate-800 */
-        --color-sidebar: rgba(15, 23, 42, 0.8); /* slate-900 with opacity */
-        --color-card: rgba(30, 41, 59, 0.5); /* slate-800 with opacity */
-        --color-accent: #818cf8; /* indigo-400 */
-        --color-accent-hover: #a78bfa; /* violet-400 */
-        --color-text-header: #f8fafc; /* slate-50 */
-        --color-text-primary: var(--user-text-primary-override, #cbd5e1); /* slate-300 */
-        --color-text-secondary: #94a3b8; /* slate-400 */
-        --color-border: #334155; /* slate-700 */
-        --color-weekend-highlight-bg: #1a2436;
-        --color-day-off-bg: #1e293b;
 
+      body {
+        font-family: var(--font-family);
+        transition: background-color 0.5s ease, color 0.3s ease;
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+        min-height: 100vh;
+        overflow-x: hidden; /* Prevent horizontal scroll from effects */
+      }
+
+      /* =========================================
+         BASE THEME VARIABLES (Fallback/Dark)
+         ========================================= */
+      :root, .theme-dark {
+        --color-bg-primary: #0f172a;
+        --color-bg-secondary: #1e293b;
+        --color-sidebar: rgba(15, 23, 42, 0.95);
+        --color-card: rgba(30, 41, 59, 0.7);
+        --color-accent: #6366f1; /* Indigo */
+        --color-accent-hover: #818cf8;
+        --color-text-header: #f8fafc;
+        --color-text-primary: var(--user-text-primary-override, #cbd5e1);
+        --color-text-secondary: #94a3b8;
+        --color-border: #334155;
+        --color-weekend-highlight-bg: #2d3748;
+        --color-day-off-bg: #1e293b;
+        
+        --glass-border: 1px solid rgba(255, 255, 255, 0.05);
+        --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        --glass-backdrop: blur(10px);
+
+        /* Duty Status Colors */
         --color-duty-onduty-bg: #e0e0e0; --color-duty-onduty-text: #000000;
         --color-duty-sick-bg: #facc15; --color-duty-sick-text: #1f2937;
         --color-duty-trip-bg: #3b82f6; --color-duty-trip-text: #ffffff;
@@ -36,19 +58,21 @@
         --color-duty-leave-bg: #a855f7; --color-duty-leave-text: #ffffff;
         --color-duty-other-bg: #64748b; --color-duty-other-text: #ffffff;
       }
+
       .theme-white {
-        --color-bg-primary: #ffffff;
-        --color-bg-secondary: #f9fafb;
-        --color-sidebar: #1f2937;
+        --color-bg-primary: #f3f4f6;
+        --color-bg-secondary: #ffffff;
+        --color-sidebar: #ffffff;
         --color-card: #ffffff;
-        --color-accent: #06b6d4;
-        --color-accent-hover: #0891b2;
-        --color-text-header: #111827;
-        --color-text-primary: var(--user-text-primary-override, #1f2937);
-        --color-text-secondary: #6b7280;
-        --color-border: #e5e7eb;
-        --color-weekend-highlight-bg: #f3f4f6;
-        --color-day-off-bg: #e5e7eb;
+        --color-accent: #0ea5e9;
+        --color-accent-hover: #0284c7;
+        --color-text-header: #000000;
+        /* Forced Black Text for Visibility */
+        --color-text-primary: #000000 !important; 
+        --color-text-secondary: #333333;
+        --color-border: #d1d5db;
+        --color-weekend-highlight-bg: #e5e7eb;
+        --color-day-off-bg: #f3f4f6;
         
         --color-duty-onduty-bg: #111827; --color-duty-onduty-text: #ffffff;
         --color-duty-sick-bg: #fef08a; --color-duty-sick-text: #000000;
@@ -58,307 +82,333 @@
         --color-duty-other-bg: #e2e8f0; --color-duty-other-text: #000000;
       }
 
-      /* 1. OCEAN */
+      /* =========================================
+         THEME: OCEAN (Deep, Dynamic, Bubbles)
+         ========================================= */
       .theme-ocean {
-        --color-bg-primary: #0f172a;
-        --color-bg-secondary: #1e293b;
-        --color-sidebar: rgba(15, 23, 42, 0.9);
-        --color-card: rgba(30, 41, 59, 0.6);
-        --color-accent: #38bdf8;
-        --color-accent-hover: #0ea5e9;
-        --color-text-header: #f0f9ff;
-        --color-text-primary: #e0f2fe;
-        --color-text-secondary: #94a3b8;
-        --color-border: #334155;
-        background: linear-gradient(to bottom, #0c4a6e, #0f172a);
+        --color-bg-primary: #001e3c;
+        --color-bg-secondary: rgba(10, 25, 41, 0.7);
+        --color-sidebar: rgba(2, 16, 37, 0.9);
+        --color-card: rgba(19, 47, 76, 0.8);
+        --color-accent: #00bcd4; /* Cyan */
+        --color-accent-hover: #26c6da;
+        --color-text-header: #e0f7fa;
+        --color-text-primary: #b2ebf2;
+        --color-text-secondary: #4dd0e1;
+        --color-border: #004d61;
+        --color-weekend-highlight-bg: rgba(0, 188, 212, 0.15);
+        
+        background: radial-gradient(circle at bottom center, #006064 0%, #001e3c 80%);
         background-attachment: fixed;
       }
-      .theme-ocean::before {
-        content: ' ';
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-image: 
-          radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-          radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
-        background-size: 50px 50px, 40px 40px;
-        background-position: 0 0, 20px 20px;
-        animation: floatUp 20s linear infinite;
-        pointer-events: none;
-        z-index: -1;
-      }
-      @keyframes floatUp {
-        from { background-position: 0 100vh, 20px 120vh; }
-        to { background-position: 0 -100vh, 20px -80vh; }
+      .theme-ocean .bg-card, .theme-ocean .bg-sidebar {
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(0, 188, 212, 0.3);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 188, 212, 0.1);
       }
 
-      /* 2. WOOD */
+      /* =========================================
+         THEME: WOOD (Forest, Warm, Fireflies)
+         ========================================= */
       .theme-wood {
-        --color-bg-primary: #2e2418; /* Dark wood */
-        --color-bg-secondary: #3e3021;
-        --color-sidebar: #261e14;
-        --color-card: #463625;
-        --color-accent: #65a30d; /* Leaf green */
-        --color-accent-hover: #4d7c0f;
-        --color-text-header: #ecfccb;
-        --color-text-primary: #d6d3d1;
-        --color-text-secondary: #a8a29e;
-        --color-border: #574633;
-        background: #2e2418;
+        --color-bg-primary: #261a12;
+        --color-bg-secondary: #3e2723;
+        --color-sidebar: #1b120d;
+        --color-card: rgba(62, 39, 35, 0.9);
+        --color-accent: #7cb342; /* Light Green */
+        --color-accent-hover: #8bc34a;
+        --color-text-header: #dcedc8;
+        --color-text-primary: #efebe9;
+        --color-text-secondary: #d7ccc8;
+        --color-border: #5d4037;
+        --color-weekend-highlight-bg: rgba(124, 179, 66, 0.15);
+        
+        background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20.5V18H0v-2h20v-2H0v-2h20v-2H0V8h20V6H0V4h20V2H0V0h22v20h2V0h2v20h2V0h2v20h2V0h2v20h2V0h2v20h2v2H0z' fill='%233e2723' fill-opacity='0.2' fill-rule='evenodd'/%3E%3C/svg%3E");
+        background-color: #261a12;
       }
-      .theme-wood::before {
-        content: '🍂 🍃 🍂';
-        position: fixed;
-        top: -10%;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        font-size: 24px;
-        text-shadow: 10vw 20vh 0 rgba(0,0,0,0.2), 30vw 50vh 0 rgba(0,0,0,0.2), 70vw 10vh 0 rgba(0,0,0,0.2), 90vw 60vh 0 rgba(0,0,0,0.2);
-        animation: fallingLeaves 15s linear infinite;
-        pointer-events: none;
-        z-index: -1;
-        opacity: 0.3;
-      }
-      @keyframes fallingLeaves {
-        0% { transform: translateY(-10vh) rotate(0deg); }
-        100% { transform: translateY(110vh) rotate(360deg); }
+      .theme-wood .bg-card, .theme-wood .bg-sidebar {
+        border: 2px solid #5d4037;
+        box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
       }
 
-      /* 3. CANDY */
+      /* =========================================
+         THEME: CANDY (Vibrant, Pop, Sweet)
+         ========================================= */
       .theme-candy {
-        --color-bg-primary: #fdf2f8; /* Pinkish white */
-        --color-bg-secondary: #fbcfe8; /* Pink 200 */
-        --color-sidebar: #f9a8d4; /* Pink 300 */
-        --color-card: #fce7f3;
-        --color-accent: #db2777; /* Pink 600 */
-        --color-accent-hover: #be185d;
-        --color-text-header: #831843; /* Pink 900 */
-        --color-text-primary: #000000; /* Requested Black Text */
-        --color-text-secondary: #4a044e;
-        --color-border: #f472b6;
-        background: #fdf2f8;
-      }
-      .theme-candy::before {
-        content: '🍬 🍭 🧁';
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        font-size: 30px;
-        animation: floatCandy 25s linear infinite;
-        pointer-events: none;
-        z-index: 0;
-        opacity: 0.15;
-        word-spacing: 20vw;
-        line-height: 30vh;
-      }
-      @keyframes floatCandy {
-        from { transform: translateY(-100px); }
-        to { transform: translateY(100vh); }
-      }
-
-      /* 4. CHRISTMAS */
-      .theme-christmas {
-        --color-bg-primary: #022c22; /* Dark green */
-        --color-bg-secondary: #064e3b;
-        --color-sidebar: #065f46;
-        --color-card: #064e3b;
-        --color-accent: #dc2626; /* Red 600 */
-        --color-accent-hover: #b91c1c;
-        --color-text-header: #fee2e2;
-        --color-text-primary: #fca5a5; /* Light red */
-        --color-text-secondary: #99f6e4;
-        --color-border: #047857;
-        background: #022c22;
-      }
-      .theme-christmas::before {
-        content: '🎄 🎁 ❄️';
-        position: fixed;
-        font-size: 24px;
-        width: 100%; height: 100%;
-        animation: snow 10s linear infinite;
-        pointer-events: none;
-        opacity: 0.2;
-        word-spacing: 15vw;
-        line-height: 20vh;
-        z-index: 0;
-      }
-      @keyframes snow {
-        0% { transform: translateY(-50px); }
-        100% { transform: translateY(100vh); }
-      }
-
-      /* 5. HARRY POTTER */
-      .theme-harry-potter {
-        --color-bg-primary: #1c1917; /* Stone dark */
-        --color-bg-secondary: #292524;
-        --color-sidebar: #0c0a09;
-        --color-card: #292524;
-        --color-accent: #d97706; /* Amber/Gold */
-        --color-accent-hover: #b45309;
-        --color-text-header: #fbbf24;
-        --color-text-primary: #e7e5e4;
-        --color-text-secondary: #a8a29e;
-        --color-border: #78350f;
-        background-image: radial-gradient(circle at 50% 50%, #1c1917 0%, #000000 100%);
-      }
-      /* Moving sidebar elements */
-      .theme-harry-potter aside nav a {
-        animation: magicFloat 3s ease-in-out infinite;
-        display: flex;
-      }
-      .theme-harry-potter aside nav a:nth-child(odd) { animation-delay: 0.5s; }
-      .theme-harry-potter aside nav a:nth-child(even) { animation-delay: 1s; }
-      
-      @keyframes magicFloat {
-        0%, 100% { transform: translateX(0); }
-        50% { transform: translateX(5px); }
-      }
-
-      /* 6. PAPER */
-      .theme-paper {
-        --color-bg-primary: #f5f5f5;
+        --color-bg-primary: #fff0f5; /* Lavender Blush */
         --color-bg-secondary: #ffffff;
-        --color-sidebar: #e5e5e5;
-        --color-card: #ffffff;
-        --color-accent: #2563eb; /* Blue pen color */
-        --color-accent-hover: #1d4ed8;
-        --color-text-header: #000000;
-        --color-text-primary: #000000;
-        --color-text-secondary: #525252;
-        --color-border: #a3a3a3;
-        --font-family: "Courier New", Courier, monospace; /* Handwritten-ish type */
+        --color-sidebar: #f8bbd0;
+        --color-card: rgba(255, 255, 255, 0.9);
+        --color-accent: #ff4081; /* Pink */
+        --color-accent-hover: #f50057;
+        --color-text-header: #880e4f;
+        /* Forced Black Text */
+        --color-text-primary: #000000 !important;
+        --color-text-secondary: #880e4f;
+        --color-border: #f48fb1;
+        --color-weekend-highlight-bg: #fce4ec;
         
-        /* Grid paper background */
-        background-color: #fff;
-        background-image: 
-          linear-gradient(#e5e5e5 1px, transparent 1px), 
-          linear-gradient(90deg, #e5e5e5 1px, transparent 1px);
-        background-size: 20px 20px;
+        background: linear-gradient(45deg, #fce4ec 25%, #f8bbd0 25%, #f8bbd0 50%, #fce4ec 50%, #fce4ec 75%, #f8bbd0 75%, #f8bbd0 100%);
+        background-size: 40px 40px;
+        animation: candyScroll 60s linear infinite;
       }
-      .theme-paper::after {
-        content: '✏️ 📝';
-        position: fixed;
-        bottom: 20px; right: 20px;
-        font-size: 40px;
-        opacity: 0.5;
-        pointer-events: none;
+      @keyframes candyScroll {
+        0% { background-position: 0 0; }
+        100% { background-position: 100px 100px; }
       }
-      .theme-paper .bg-card {
-        box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
-        border: 1px solid #000;
+      .theme-candy .bg-card, .theme-candy .bg-sidebar {
+        border-radius: 20px;
+        border: 3px solid #ff4081;
+        box-shadow: 5px 5px 0px #f48fb1;
+      }
+      .theme-candy button {
+        border-radius: 9999px; /* Pill buttons */
+        font-weight: bold;
       }
 
-      /* 7. MILITARY */
-      .theme-military {
-        --color-bg-primary: #3f4d38; /* Olive drab */
-        --color-bg-secondary: #4b5c42;
-        --color-sidebar: #2e382a;
-        --color-card: #4b5c42;
-        --color-accent: #a3b18a; /* Sage */
-        --color-accent-hover: #dad7cd;
-        --color-text-header: #ffffff;
-        --color-text-primary: #dad7cd;
-        --color-text-secondary: #a3b18a;
-        --color-border: #588157;
-        
-        /* Pixel Camo Approximation using gradients */
-        background-color: #3f4d38;
-        background-image: 
-          linear-gradient(45deg, #2e382a 25%, transparent 25%, transparent 75%, #2e382a 75%, #2e382a), 
-          linear-gradient(45deg, #2e382a 25%, transparent 25%, transparent 75%, #2e382a 75%, #2e382a);
-        background-size: 20px 20px;
-        background-position: 0 0, 10px 10px;
-      }
-      .theme-military::after {
-        content: '🪖 🛡️';
-        position: fixed;
-        bottom: 10px; left: 10px;
-        font-size: 50px;
-        opacity: 0.2;
-        pointer-events: none;
-      }
-
-      /* 8. MATRIX */
+      /* =========================================
+         THEME: MATRIX (Digital, Glitch, Code)
+         ========================================= */
       .theme-matrix {
         --color-bg-primary: #000000;
-        --color-bg-secondary: #022c02; /* Very dark green */
+        --color-bg-secondary: #0a0a0a;
         --color-sidebar: #000000;
-        --color-card: rgba(0, 50, 0, 0.8);
-        --color-accent: #00ff00; /* Matrix Green */
-        --color-accent-hover: #ccffcc;
-        --color-text-header: #00ff00;
+        --color-card: rgba(0, 20, 0, 0.95);
+        --color-accent: #00ff41; /* Matrix Green */
+        --color-accent-hover: #00cc33;
+        --color-text-header: #00ff41;
         --color-text-primary: #00dd00;
-        --color-text-secondary: #008800;
-        --color-border: #004400;
-        font-family: "Courier New", Courier, monospace;
-        background: #000;
+        --color-text-secondary: #008f11;
+        --color-border: #003b00;
+        --color-weekend-highlight-bg: rgba(0, 255, 65, 0.1);
+        --font-family: "Courier New", Courier, monospace;
+        
+        background-color: #000;
       }
-      .theme-matrix::before {
+      /* CRT Scanline Effect */
+      .theme-matrix::after {
         content: " ";
         display: block;
         position: fixed;
         top: 0; left: 0; bottom: 0; right: 0;
         background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-        z-index: 9999;
+        z-index: 999;
         background-size: 100% 2px, 3px 100%;
         pointer-events: none;
       }
+      .theme-matrix .bg-card, .theme-matrix .bg-sidebar {
+        border: 1px solid #00ff41;
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.2);
+      }
       .theme-matrix * {
-        text-shadow: 0 0 2px #00ff00;
+        text-shadow: 0 0 2px rgba(0, 255, 65, 0.5);
       }
 
-      /* 9. HALLOWEEN */
+      /* =========================================
+         THEME: MILITARY (Tactical, Camo, Stencil)
+         ========================================= */
+      .theme-military {
+        --color-bg-primary: #4b5320; /* Army Green */
+        --color-bg-secondary: #3b3f2a;
+        --color-sidebar: #282b1d;
+        --color-card: rgba(59, 63, 42, 0.95);
+        --color-accent: #8f9e6d; /* Sage */
+        --color-accent-hover: #aeb585;
+        --color-text-header: #e8e8d6;
+        --color-text-primary: #d3d6c8;
+        --color-text-secondary: #8c917b;
+        --color-border: #5e6644;
+        --color-weekend-highlight-bg: rgba(143, 158, 109, 0.2);
+        
+        background-color: #4b5320;
+        background-image: 
+            radial-gradient(circle at 20% 20%, rgba(0,0,0,0.4) 10%, transparent 10%),
+            radial-gradient(circle at 80% 80%, rgba(0,0,0,0.4) 10%, transparent 10%),
+            radial-gradient(circle at 50% 50%, rgba(0,0,0,0.2) 20%, transparent 20%);
+        background-size: 200px 200px;
+    }
+      .theme-military .bg-card {
+        border: 2px solid #5e6644;
+        position: relative;
+      }
+      /* Tactical Corners */
+      .theme-military .bg-card::before {
+        content: '';
+        position: absolute; top: -2px; left: -2px; width: 10px; height: 10px;
+        border-top: 2px solid #8f9e6d; border-left: 2px solid #8f9e6d;
+        z-index: 10;
+      }
+      .theme-military .bg-card::after {
+        content: '';
+        position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px;
+        border-bottom: 2px solid #8f9e6d; border-right: 2px solid #8f9e6d;
+        z-index: 10;
+      }
+
+      /* =========================================
+         THEME: HALLOWEEN (Spooky, Fog, Glow)
+         ========================================= */
       .theme-halloween {
-        --color-bg-primary: #271300; /* Dark orange/brown */
-        --color-bg-secondary: #451a03;
-        --color-sidebar: #000000;
-        --color-card: rgba(0,0,0,0.7);
-        --color-accent: #f97316; /* Orange 500 */
-        --color-accent-hover: #ea580c;
-        --color-text-header: #fdba74;
-        --color-text-primary: #fed7aa;
-        --color-text-secondary: #9a3412;
-        --color-border: #c2410c;
-        background: #271300;
+        --color-bg-primary: #1a0505;
+        --color-bg-secondary: #2d0a0a;
+        --color-sidebar: #0f0202;
+        --color-card: rgba(40, 10, 10, 0.9);
+        --color-accent: #ff6600; /* Pumpkin */
+        --color-accent-hover: #ff8533;
+        --color-text-header: #ffa366;
+        --color-text-primary: #ffd1b3;
+        --color-text-secondary: #cc5200;
+        --color-border: #661a00;
+        --color-weekend-highlight-bg: rgba(255, 102, 0, 0.15);
+        
+        background: #1a0505;
       }
-      .theme-halloween::before {
-        content: '🎃 🕷️ 🕸️ 🧙‍♀️';
-        position: fixed;
-        width: 100%; height: 100%;
-        font-size: 24px;
-        animation: spookFloat 8s ease-in-out infinite alternate;
-        pointer-events: none;
-        opacity: 0.3;
-        word-spacing: 10vw;
-        line-height: 25vh;
-        z-index: 0;
+      .theme-halloween .bg-card, .theme-halloween .bg-sidebar {
+        border: 1px solid #ff6600;
+        box-shadow: 0 0 15px rgba(255, 102, 0, 0.2), inset 0 0 20px rgba(0,0,0,0.8);
       }
-      @keyframes spookFloat {
-        0% { transform: translateY(0) translateX(0); }
-        100% { transform: translateY(-20px) translateX(10px); }
+      
+      /* =========================================
+         THEME: CYBERPUNK (Neon, Grid, Future)
+         ========================================= */
+      .theme-cyberpunk {
+        --color-bg-primary: #050510;
+        --color-bg-secondary: #0d0d25;
+        --color-sidebar: rgba(5, 5, 16, 0.95);
+        --color-card: rgba(20, 20, 40, 0.85);
+        --color-accent: #ff00ff; /* Magenta */
+        --color-accent-hover: #d000d0;
+        --color-text-header: #00ffff; /* Cyan */
+        --color-text-primary: #e0e0ff;
+        --color-text-secondary: #ff00ff;
+        --color-border: #3333aa;
+        --color-weekend-highlight-bg: rgba(255, 0, 255, 0.15);
+        
+        background: 
+            linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+            linear-gradient(90deg, rgba(255, 0, 255, 0.06), rgba(0, 255, 255, 0.02), rgba(0, 0, 255, 0.06)),
+            linear-gradient(to bottom, #050510, #1a0b2e);
+        background-size: 100% 2px, 3px 100%, 100% 100%;
+      }
+      .theme-cyberpunk .bg-card, .theme-cyberpunk .bg-sidebar {
+        border: 1px solid #00ffff;
+        box-shadow: 0 0 10px #ff00ff, inset 0 0 5px #00ffff;
+        clip-path: polygon(
+            0 0, 
+            100% 0, 
+            100% calc(100% - 15px), 
+            calc(100% - 15px) 100%, 
+            0 100%
+        ); /* Cut corner effect */
+      }
+      .theme-cyberpunk .text-header {
+        text-shadow: 0 0 5px #00ffff;
       }
 
-      /* 10. STRONG */
+      /* =========================================
+         THEME: PAPER (Drafting, Blueprints)
+         ========================================= */
+      .theme-paper {
+        --color-bg-primary: #f0f0f0;
+        --color-bg-secondary: #ffffff;
+        --color-sidebar: #e8e8e8;
+        --color-card: #ffffff;
+        --color-accent: #2962ff; /* Blueprint Blue */
+        --color-accent-hover: #0039cb;
+        --color-text-header: #000000;
+        /* Forced Black Text */
+        --color-text-primary: #000000 !important;
+        --color-text-secondary: #424242;
+        --color-border: #bdbdbd;
+        --color-weekend-highlight-bg: #e0e0e0;
+        --font-family: 'Courier New', Courier, monospace;
+        
+        background-color: #f0f0f0;
+        background-image: 
+          linear-gradient(#cfd8dc 1px, transparent 1px), 
+          linear-gradient(90deg, #cfd8dc 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      .theme-paper .bg-card {
+        border: 2px solid #000;
+        box-shadow: 6px 6px 0px rgba(0,0,0,0.1);
+        transform: rotate(-0.5deg);
+      }
+      .theme-paper .bg-sidebar {
+        border-right: 2px solid #000;
+      }
+
+      /* =========================================
+         THEME: CHRISTMAS (Festive, Snow)
+         ========================================= */
+      .theme-christmas {
+        --color-bg-primary: #0f3d2e; /* Dark Green */
+        --color-bg-secondary: #1b5e47;
+        --color-sidebar: #0a291f;
+        --color-card: rgba(27, 94, 71, 0.9);
+        --color-accent: #d32f2f; /* Red */
+        --color-accent-hover: #b71c1c;
+        --color-text-header: #fff;
+        --color-text-primary: #e0f2f1;
+        --color-text-secondary: #a7ffeb;
+        --color-border: #2e7d32;
+        --color-weekend-highlight-bg: rgba(255, 255, 255, 0.1);
+        
+        background: radial-gradient(circle, #1b5e47 0%, #0f3d2e 100%);
+      }
+      .theme-christmas .bg-card, .theme-christmas .bg-sidebar {
+        border: 2px solid #ffcdd2; /* Light Red border */
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+      }
+
+      /* =========================================
+         THEME: MAGIC (Harry Potter, Parchment)
+         ========================================= */
+      .theme-harry-potter {
+        --color-bg-primary: #2c241b;
+        --color-bg-secondary: #3e3226;
+        --color-sidebar: #1a1510;
+        --color-card: rgba(62, 50, 38, 0.95);
+        --color-accent: #ffb300; /* Gold */
+        --color-accent-hover: #ffca28;
+        --color-text-header: #ffecb3;
+        --color-text-primary: #d7ccc8;
+        --color-text-secondary: #8d6e63;
+        --color-border: #5d4037;
+        --color-weekend-highlight-bg: rgba(255, 179, 0, 0.15);
+        font-family: 'Garamond', serif;
+        
+        background-color: #2c241b;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffb300' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      }
+      .theme-harry-potter .bg-card {
+        border: 1px solid #ffb300;
+        box-shadow: 0 0 20px rgba(255, 179, 0, 0.1);
+      }
+
+      /* =========================================
+         THEME: STRONG (High Contrast B&W)
+         ========================================= */
       .theme-strong {
         --color-bg-primary: #000000;
-        --color-bg-secondary: #000000;
+        --color-bg-secondary: #111111;
         --color-sidebar: #000000;
         --color-card: #000000;
         --color-accent: #ffffff;
         --color-accent-hover: #cccccc;
         --color-text-header: #ffffff;
         --color-text-primary: #ffffff;
-        --color-text-secondary: #ffffff;
+        --color-text-secondary: #aaaaaa;
         --color-border: #ffffff;
-        background: #000;
+        --color-weekend-highlight-bg: #222222;
       }
       .theme-strong .bg-card, .theme-strong .bg-sidebar {
-          border: 2px solid #fff;
+        border: 2px solid #ffffff;
       }
 
-      body {
-        font-family: var(--font-family);
-      }
-      
+      /* =========================================
+         COMMON UTILS
+         ========================================= */
       .logo-image {
         background-color: var(--color-accent);
         -webkit-mask: url(assets/logo.svg) no-repeat center;
@@ -368,11 +418,11 @@
         filter: drop-shadow(0 0 2rem color-mix(in srgb, var(--color-accent) 25%, transparent));
       }
       
-      @keyframes gradient-text-anim {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
+      .glass-ui-enabled .bg-card, .glass-ui-enabled .bg-sidebar {
+          background-color: var(--color-card); /* Fallback uses var */
+          backdrop-filter: blur(10px);
       }
+
       .animate-gradient-text {
         background: linear-gradient(90deg, #ff00e5, #3b82f6, #facc15, #ff00e5);
         background-size: 200% 200%;
@@ -381,49 +431,20 @@
         background-clip: text;
         animation: gradient-text-anim 4s ease infinite;
       }
+      @keyframes gradient-text-anim {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
       
+      .animate-pulse-attention {
+          animation: pulse-attention 1.5s infinite;
+      }
       @keyframes pulse-attention {
           0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); transform: scale(1); }
           50% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); transform: scale(1.02); }
       }
-      .animate-pulse-attention {
-          animation: pulse-attention 1.5s infinite;
-      }
-       @keyframes top-pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-      }
-      .animate-top-pulse {
-        animation: top-pulse 2s infinite ease-in-out;
-      }
-      
-      #spotlight {
-        position: fixed;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0) 70%);
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        transform: translate(-50%, -50%);
-        transition: top 0.05s linear, left 0.05s linear; 
-      }
-      .glass-ui-enabled .bg-card, .glass-ui-enabled .bg-sidebar {
-          background-color: rgba(255, 255, 255, 0.05);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .theme-dark.glass-ui-enabled .bg-card, .theme-dark.glass-ui-enabled .bg-sidebar {
-          background-color: rgba(15, 23, 42, 0.4);
-      }
-      .is-deleting {
-        transition: all 0.5s ease;
-        transform: scale(0.9);
-        opacity: 0;
-      }
 
-      /* Schedule Highlighting */
       .schedule-highlight-row-hover > td::after,
       .schedule-highlight-col-hover::after {
         content: '';
@@ -442,6 +463,53 @@
       }
       .schedule-weekend-glow {
           background-color: var(--color-weekend-highlight-bg);
+      }
+      
+      /* Schedule Fixed Width */
+      .schedule-col-width {
+          width: 35px;
+          min-width: 35px;
+          max-width: 35px;
+      }
+      
+      /* New Animations for Secrets */
+      @keyframes float-up {
+        0% { transform: translateY(100vh) scale(0); opacity: 0; }
+        50% { opacity: 0.7; }
+        100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
+      }
+      
+      @keyframes digital-rain {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+      
+      @keyframes firefly-move {
+        0% { transform: translate(0, 0); opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { transform: translate(var(--tx), var(--ty)); opacity: 0; }
+      }
+
+      /* =========================================
+         SCROLLBARS
+         ========================================= */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background-color: var(--color-border);
+        border-radius: 99px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-text-secondary);
       }
     </style>
     <script>
@@ -471,14 +539,9 @@
                 '10%, 90%': { opacity: '1', transform: 'translate(-50%, 0)' },
                 '100%': { opacity: '0', transform: 'translate(-50%, 10px)' },
               },
-              load: {
-                '0%': { width: '0%' },
-                '100%': { width: '100%' },
-              }
             },
             animation: {
               'fade-in-out': 'fadeInOut 3s ease-in-out forwards',
-              'load-bar': 'load 3s ease-in-out forwards',
             }
           }
         }
@@ -502,32 +565,5 @@
   <body class="bg-primary">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
-    <div id="spotlight"></div>
-    <script>
-        const spotlight = document.getElementById('spotlight');
-        if (spotlight) {
-            let mouseX = 0, mouseY = 0;
-            let spotlightX = 0, spotlightY = 0;
-            const speed = 0.1;
-
-            document.addEventListener('mousemove', (e) => {
-                mouseX = e.clientX;
-                mouseY = e.clientY;
-            });
-
-            function animate() {
-                if (document.body.classList.contains('theme-spotlight')) {
-                    const dx = mouseX - spotlightX;
-                    const dy = mouseY - spotlightY;
-                    spotlightX += dx * speed;
-                    spotlightY += dy * speed;
-                    spotlight.style.left = spotlightX + 'px';
-                    spotlight.style.top = spotlightY + 'px';
-                }
-                requestAnimationFrame(animate);
-            }
-            animate();
-        }
-    </script>
   </body>
 </html>

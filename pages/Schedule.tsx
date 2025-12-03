@@ -63,7 +63,6 @@ const AbsenceModal: React.FC<{
 
     useEffect(() => {
         if (isOpen && startDate) {
-            // Default to start date
             const yyyy = startDate.getFullYear();
             const mm = String(startDate.getMonth() + 1).padStart(2, '0');
             const dd = String(startDate.getDate()).padStart(2, '0');
@@ -309,8 +308,6 @@ const Schedule: React.FC = () => {
     const peopleForCategory = useMemo(() => {
         if (!selectedCategoryId || !selectedCategory) return { active: [], unavailable: [], archived: [] };
         
-        const peopleMap = new Map(people.map(p => [p.id, p]));
-
         const calculateAvailability = (person: Person) => {
             let unavailableDays = 0;
             const personSchedule = schedules[selectedCategoryId]?.[yearMonth]?.[person.id] || {};
@@ -366,7 +363,7 @@ const Schedule: React.FC = () => {
                 return a.fullName.localeCompare(b.fullName);
             });
             
-        // Updated logic: if duty count > 0, person is active, regardless of availability score
+        // Updated logic (1.4.1): if duty count > 0, person is active, regardless of availability score
         const active = activeAndPotentiallyUnavailable.filter(p => {
             const hasDuties = (dutyCountsForMonth.get(p.id) || 0) > 0;
             return p.availableDays > 0 || hasDuties;
@@ -688,7 +685,7 @@ const Schedule: React.FC = () => {
         logAction(`Змінено статус для "${personName}" на ${day} число на "${status}" в категорії "${selectedCategory?.shortName}"`);
     };
     
-    // Updated function for setting range across categories
+    // Updated function for setting range across categories (1.4.1)
     const handleSaveAbsence = (endDate: Date) => {
         if (!absenceModalInfo || !selectedCategory) return;
         const { personId, startDate } = absenceModalInfo;
@@ -713,7 +710,7 @@ const Schedule: React.FC = () => {
         setSchedules(prev => {
             const newSchedules = JSON.parse(JSON.stringify(prev));
             
-            // Loop through all categories the person belongs to
+            // Loop through all categories the person belongs to (1.4.1 Cross-Category Sync)
             person.categoryIds.forEach(catId => {
                 // Ensure structure exists
                 newSchedules[catId] ??= {};
@@ -835,7 +832,7 @@ const Schedule: React.FC = () => {
         const isAbsenceTool = activeTool !== DutyStatus.ON_DUTY && activeTool !== 'CLEAR';
         
         if (isAbsenceTool) {
-            // New Absence Logic: Open Modal immediately
+            // New Absence Logic (1.4.1): Open Modal immediately
             setAbsenceModalInfo({
                 isOpen: true,
                 personId: personId,
@@ -868,19 +865,11 @@ const Schedule: React.FC = () => {
         const {personId, day} = clearingInfo;
         const currentStatus = schedules[selectedCategoryId]?.[yearMonth]?.[personId]?.[day];
 
-        // If it's an absence, we should ideally clear the range, but since we don't know the range end easily here without searching
-        // we will just clear this specific cell or ask for confirmation to clear just this cell. 
-        // For simplicity in this update, we clear the cell. 
-        // Ideally, clearing an absence should also update cross-category if possible, but 'CLEAR' tool behavior is often localized.
-        // Let's keep CLEAR simple for now or use the modal for clearing too? 
-        // The prompt implies "any lens except duty and cancel" opens the modal. CLEAR is usually "cancel/delete".
-        
         if (Object.values(DutyStatus).includes(currentStatus as DutyStatus) && currentStatus !== DutyStatus.ON_DUTY && currentStatus !== DutyStatus.AVAILABLE) {
              const personSchedule = schedules[selectedCategoryId]?.[yearMonth]?.[personId] || {};
             let start = day, end = day;
             while(personSchedule[start-1] === currentStatus) start--;
             while(personSchedule[end+1] === currentStatus) end++;
-            // Still use range update for clearing connected blocks in same month
             handleRangeUpdate(personId, start, end, 'CLEAR');
         } else {
             handleStatusUpdate(personId, day, 'CLEAR');
@@ -1426,7 +1415,7 @@ const Schedule: React.FC = () => {
 
                         return (
                             <td key={day} 
-                                className={`p-0 text-center border-b border-r border-border-color transition-opacity relative
+                                className={`p-0 text-center border-b border-r border-border-color transition-opacity relative schedule-col-width
                                     ${isWeekend ? 'schedule-weekend-glow' : ''}
                                     ${isAbsence && !isAbsenceStart ? 'border-l-transparent' : ''} 
                                     ${isAbsence && !isAbsenceEnd ? 'border-r-transparent' : ''}
@@ -1587,7 +1576,7 @@ const Schedule: React.FC = () => {
                                         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                                         const isLocked = (lockedDays[yearMonth] || []).includes(day);
                                         return (
-                                            <th key={day} className={`p-1 border-b border-r border-border-color w-8 relative ${isWeekend ? 'schedule-weekend-glow' : ''}`}>
+                                            <th key={day} className={`p-1 border-b border-r border-border-color w-8 relative schedule-col-width ${isWeekend ? 'schedule-weekend-glow' : ''}`}>
                                                 <button onClick={() => handleToggleLockDay(day)} className="absolute top-0 right-0 p-0.5 text-secondary-text hover:text-accent" title={isLocked ? "Розблокувати день" : "Заблокувати день"}>
                                                     {isLocked ? <LockClosedIcon className="w-3 h-3"/> : <LockOpenIcon className="w-3 h-3"/>}
                                                 </button>
@@ -1795,7 +1784,8 @@ const Schedule: React.FC = () => {
             />
             <ConfirmationModal isOpen={!!clearingInfo} onClose={() => setClearingInfo(null)} onConfirm={handleConfirmClear} title="Очистити статус?" message="Ви впевнені, що хочете видалити цей статус?" />
             <ConfirmationModal isOpen={!!replacementInfo} onClose={() => setReplacementInfo(null)} onConfirm={handleConfirmReplacement} title="Заміна в наряді" message="Виберіть особу, яка має замінити поточну." confirmButtonText="Продовжити" confirmButtonClassName="bg-accent hover:bg-accent-hover"/>
-            {/* New Absence Modal rendering */}
+            
+            {/* New Absence Modal rendering (1.4.1) */}
             <AbsenceModal 
                 isOpen={!!absenceModalInfo} 
                 onClose={() => setAbsenceModalInfo(null)}

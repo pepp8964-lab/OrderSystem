@@ -1,8 +1,9 @@
+
 import React, { createContext, useContext, useState, ReactNode, useCallback, useEffect, useMemo } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
 
 // Theme Context
-export type Theme = 'dark' | 'white' | 'ocean' | 'wood' | 'candy' | 'christmas' | 'harry-potter' | 'paper' | 'military' | 'matrix' | 'halloween' | 'strong';
+export type Theme = 'dark' | 'white' | 'ocean' | 'wood' | 'candy' | 'christmas' | 'harry-potter' | 'paper' | 'military' | 'matrix' | 'halloween' | 'strong' | 'cyberpunk';
 
 
 interface ThemeContextType {

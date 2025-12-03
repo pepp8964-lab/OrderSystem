@@ -51,8 +51,15 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
         if (file) {
             const reader = new FileReader();
             reader.onload = (event) => {
+                const text = event.target?.result as string;
+                if (!text || (!text.trim().startsWith('{') && !text.trim().startsWith('['))) {
+                     showToast("Некоректний формат файлу. Очікується JSON.");
+                     setFileData(null);
+                     if (e.target) e.target.value = '';
+                     return;
+                }
                 try {
-                    const data = JSON.parse(event.target?.result as string) as AllData;
+                    const data = JSON.parse(text) as AllData;
                     setFileData(data);
                     const newSelections: typeof importSelections = { ...importSelections };
                     for (const key of DATA_KEYS) {

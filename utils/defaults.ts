@@ -1,3 +1,4 @@
+
 import { AppSettings } from '../types';
 
 export const defaultSettings: AppSettings = {
@@ -21,5 +22,5 @@ export const defaultSettings: AppSettings = {
         fontSize: 13,
         textColor: '',
     },
-    defaultTheme: 'dark',
+    defaultTheme: 'christmas',
 };

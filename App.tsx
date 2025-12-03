@@ -11,6 +11,8 @@ import Updates, { CHANGELOG_DATA } from './pages/Updates';
 import Structure from './pages/Structure';
 import Laboratory from './pages/Laboratory';
 import Formation from './pages/Formation';
+import { ThemeProvider, ToastProvider, ActionLogProvider, ModalProvider } from './context/ThemeContext';
+import { SearchProvider } from './context/SearchContext';
 import { useTheme, useToast, useActionLog, useModal } from './context/ThemeContext';
 import Card from './components/Card';
 import { AllData, AppSettings } from './types';
@@ -92,6 +94,11 @@ const StartupScreen: React.FC<{
             reader.onload = async (event) => {
                 try {
                     const text = event.target?.result as string;
+                    // Improved JSON parsing check
+                    if (!text || (!text.trim().startsWith('{') && !text.trim().startsWith('['))) {
+                         throw new Error("INVALID_FORMAT");
+                    }
+
                     let data;
                     try {
                         data = JSON.parse(text) as AllData & {unitName?: string, cachedDbFile?: {name: string, data: string}, excelMapping?: any};
@@ -100,9 +107,13 @@ const StartupScreen: React.FC<{
                     }
                     
                     if (data.cachedDbFile) {
-                        const fileBlob = await (await fetch(data.cachedDbFile.data)).blob();
-                        const dbFile = new File([fileBlob], data.cachedDbFile.name, { type: fileBlob.type });
-                        await saveFileToDB(dbFile);
+                        try {
+                            const fileBlob = await (await fetch(data.cachedDbFile.data)).blob();
+                            const dbFile = new File([fileBlob], data.cachedDbFile.name, { type: fileBlob.type });
+                            await saveFileToDB(dbFile);
+                        } catch (e) {
+                            console.warn("Failed to restore cached DB file", e);
+                        }
                     }
                     if (data.excelMapping) {
                          localStorage.setItem('excel-import-settings', JSON.stringify(data.excelMapping));
@@ -111,11 +122,13 @@ const StartupScreen: React.FC<{
                     onInitialize(data.unitName || 'Невідомий підрозділ', data);
                 } catch (error) {
                     if (error instanceof Error && error.message === "INVALID_FORMAT") {
-                        showToast("Некоректний формат файлу. Будь ласка, виберіть .json файл.");
+                        showToast("Некоректний формат файлу. Виберіть .json файл, створений цією програмою.");
                     } else {
                         showToast("Помилка при зчитуванні файлу.");
                         console.error("File import error:", error);
                     }
+                } finally {
+                    if (fileInputRef.current) fileInputRef.current.value = '';
                 }
             };
             reader.readAsText(file);
