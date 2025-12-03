@@ -410,7 +410,7 @@ const ImportModal: React.FC<{ onImport: (people: ImportedPersonData[]) => void; 
                 if (cachedFile) {
                     setFile(cachedFile);
                     const data = await cachedFile.arrayBuffer();
-                    const workbook = XLSX.read(data, { type: 'binary' });
+                    const workbook = XLSX.read(data, { type: 'array' });
                     setSheets(workbook.SheetNames);
                     setSelectedSheet(workbook.SheetNames[0] || '');
                 }
@@ -463,7 +463,7 @@ const ImportModal: React.FC<{ onImport: (people: ImportedPersonData[]) => void; 
 
         try {
             const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
+            const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[selectedSheet];
             const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
@@ -770,7 +770,7 @@ const ActualizationModal: React.FC<{ people: Person[]; setPeople: React.Dispatch
         if (!file) return;
         try {
             const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
+            const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
             const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -1275,7 +1275,7 @@ const People: React.FC = () => {
             logAction(`Назавжди видалено "${personToPermanentlyDelete.fullName}"`);
             setPersonToPermanentlyDelete(null);
             setDeletingId(null);
-        }, 500);
+        }, 500); 
     }
     
     const handleRestore = (id: string) => {

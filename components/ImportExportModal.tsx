@@ -63,7 +63,7 @@ const ImportExportModal: React.FC<ImportExportModalProps> = ({ initialMode, onCl
                     setImportSelections(newSelections);
                     showToast("Файл успішно прочитано. Виберіть дані для імпорту.");
                 } catch (error) {
-                    showToast("Некоректний формат файлу JSON.");
+                    showToast("Некоректний формат файлу. Очікується JSON.");
                     setFileData(null);
                 }
             };

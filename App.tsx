@@ -91,7 +91,13 @@ const StartupScreen: React.FC<{
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
-                    const data = JSON.parse(event.target?.result as string) as AllData & {unitName?: string, cachedDbFile?: {name: string, data: string}, excelMapping?: any};
+                    const text = event.target?.result as string;
+                    let data;
+                    try {
+                        data = JSON.parse(text) as AllData & {unitName?: string, cachedDbFile?: {name: string, data: string}, excelMapping?: any};
+                    } catch (e) {
+                        throw new Error("INVALID_FORMAT");
+                    }
                     
                     if (data.cachedDbFile) {
                         const fileBlob = await (await fetch(data.cachedDbFile.data)).blob();
@@ -104,8 +110,12 @@ const StartupScreen: React.FC<{
                     
                     onInitialize(data.unitName || 'Невідомий підрозділ', data);
                 } catch (error) {
-                    showToast("Некоректний формат файлу.");
-                    console.error("File import error:", error);
+                    if (error instanceof Error && error.message === "INVALID_FORMAT") {
+                        showToast("Некоректний формат файлу. Будь ласка, виберіть .json файл.");
+                    } else {
+                        showToast("Помилка при зчитуванні файлу.");
+                        console.error("File import error:", error);
+                    }
                 }
             };
             reader.readAsText(file);

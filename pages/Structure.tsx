@@ -219,7 +219,7 @@ const Structure: React.FC = () => {
                 }
 
                 const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
+                const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
@@ -413,7 +413,7 @@ const Structure: React.FC = () => {
             }
 
             const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
+            const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 

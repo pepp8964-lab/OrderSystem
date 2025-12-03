@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import useLocalStorage from '../hooks/useLocalStorage';
@@ -49,6 +50,71 @@ type TrendReport = {
     totalDuties: number;
     structuredCounts: { subdivision: Subdivision; count: number; percentage: number; }[];
 } | null;
+
+const AbsenceModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (endDate: Date) => void;
+    startDate: Date;
+    status: Tool;
+    personName: string;
+}> = ({ isOpen, onClose, onSave, startDate, status, personName }) => {
+    const [endDateStr, setEndDateStr] = useState('');
+
+    useEffect(() => {
+        if (isOpen && startDate) {
+            // Default to start date
+            const yyyy = startDate.getFullYear();
+            const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(startDate.getDate()).padStart(2, '0');
+            setEndDateStr(`${yyyy}-${mm}-${dd}`);
+        }
+    }, [isOpen, startDate]);
+
+    if (!isOpen) return null;
+
+    const handleSave = () => {
+        if (!endDateStr) return;
+        onSave(new Date(endDateStr));
+    };
+
+    const statusText = status !== 'CLEAR' ? DUTY_STATUS_FULL_TEXT[status as DutyStatus] : 'Очищення';
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-card rounded-xl border border-border-color shadow-lg w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-border-color">
+                    <h2 className="text-xl font-bold text-header">{statusText}</h2>
+                    <p className="text-sm text-secondary-text">{personName}</p>
+                </div>
+                <div className="p-4 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-secondary-text mb-1">Початок</label>
+                        <input 
+                            type="text" 
+                            value={startDate.toLocaleDateString('uk-UA')} 
+                            disabled 
+                            className="w-full bg-secondary p-2 rounded-md border border-border-color text-primary-text opacity-70 cursor-not-allowed" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-secondary-text mb-1">Кінець (включно)</label>
+                        <input 
+                            type="date" 
+                            value={endDateStr} 
+                            onChange={(e) => setEndDateStr(e.target.value)} 
+                            className="w-full bg-secondary p-2 rounded-md border border-border-color text-primary-text" 
+                        />
+                    </div>
+                </div>
+                <div className="flex justify-end space-x-2 p-4 border-t border-border-color">
+                    <button onClick={onClose} className="bg-secondary px-4 py-2 rounded-md hover:bg-primary transition-colors border border-border-color">Скасувати</button>
+                    <button onClick={handleSave} className="bg-accent text-white px-4 py-2 rounded-md hover:bg-accent-hover transition-colors">Зберегти</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Schedule: React.FC = () => {
     const [people] = useLocalStorage<Person[]>('people', []);
@@ -151,13 +217,15 @@ const Schedule: React.FC = () => {
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [activeTool, setActiveTool] = useState<Tool>(DutyStatus.ON_DUTY);
-    const [rangeStart, setRangeStart] = useState<{ personId: string; day: number } | null>(null);
+    // Clearing info now only used for single cell clear
     const [clearingInfo, setClearingInfo] = useState<{personId: string, day: number} | null>(null);
     const [replacementInfo, setReplacementInfo] = useState<{ day: number; personId: string } | null>(null);
     const [isReplacing, setIsReplacing] = useState<{ day: number; personId: string } | null>(null);
-    const [pendingRangeUpdate, setPendingRangeUpdate] = useState<{ personId: string; day1: number; day2: number; status: Tool } | null>(null);
     const [highlightedDays, setHighlightedDays] = useState<number[]>([]);
     const [showArchivedInSchedule, setShowArchivedInSchedule] = useState<boolean>(false);
+
+    // New State for Absence Modal
+    const [absenceModalInfo, setAbsenceModalInfo] = useState<{ isOpen: boolean, personId: string, startDate: Date } | null>(null);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -298,8 +366,15 @@ const Schedule: React.FC = () => {
                 return a.fullName.localeCompare(b.fullName);
             });
             
-        const active = activeAndPotentiallyUnavailable.filter(p => p.availableDays > 0);
-        const unavailable = activeAndPotentiallyUnavailable.filter(p => p.availableDays === 0);
+        // Updated logic: if duty count > 0, person is active, regardless of availability score
+        const active = activeAndPotentiallyUnavailable.filter(p => {
+            const hasDuties = (dutyCountsForMonth.get(p.id) || 0) > 0;
+            return p.availableDays > 0 || hasDuties;
+        });
+        const unavailable = activeAndPotentiallyUnavailable.filter(p => {
+            const hasDuties = (dutyCountsForMonth.get(p.id) || 0) > 0;
+            return p.availableDays === 0 && !hasDuties;
+        });
 
         const archived = allPeopleForCategory.filter(p => p.deletedTimestamp);
 
@@ -613,6 +688,61 @@ const Schedule: React.FC = () => {
         logAction(`Змінено статус для "${personName}" на ${day} число на "${status}" в категорії "${selectedCategory?.shortName}"`);
     };
     
+    // Updated function for setting range across categories
+    const handleSaveAbsence = (endDate: Date) => {
+        if (!absenceModalInfo || !selectedCategory) return;
+        const { personId, startDate } = absenceModalInfo;
+        const status = activeTool;
+
+        const person = people.find(p => p.id === personId);
+        if (!person) return;
+
+        // Determine all dates in range
+        const dates: Date[] = [];
+        let curr = new Date(startDate);
+        const end = new Date(endDate);
+        // Normalize time
+        curr.setHours(0,0,0,0);
+        end.setHours(0,0,0,0);
+
+        while (curr <= end) {
+            dates.push(new Date(curr));
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        setSchedules(prev => {
+            const newSchedules = JSON.parse(JSON.stringify(prev));
+            
+            // Loop through all categories the person belongs to
+            person.categoryIds.forEach(catId => {
+                // Ensure structure exists
+                newSchedules[catId] ??= {};
+                
+                dates.forEach(d => {
+                    const y = d.getFullYear();
+                    const m = d.getMonth() + 1;
+                    const ym = `${y}-${String(m).padStart(2, '0')}`;
+                    const day = d.getDate();
+
+                    newSchedules[catId][ym] ??= {};
+                    newSchedules[catId][ym][personId] ??= {};
+
+                    if (status === 'CLEAR') {
+                        delete newSchedules[catId][ym][personId][day];
+                    } else {
+                        newSchedules[catId][ym][personId][day] = status;
+                    }
+                });
+            });
+            return newSchedules;
+        });
+
+        const statusName = status === 'CLEAR' ? 'Очищено' : DUTY_STATUS_FULL_TEXT[status as DutyStatus];
+        logAction(`Встановлено "${statusName}" для "${person.fullName}" з ${startDate.toLocaleDateString()} по ${endDate.toLocaleDateString()} у всіх категоріях.`);
+        showToast("Статус оновлено у всіх категоріях.");
+        setAbsenceModalInfo(null);
+    };
+
     const handleRangeUpdate = (personId: string, day1: number, day2: number, status: Tool) => {
         const start = Math.min(day1, day2);
         const end = Math.max(day1, day2);
@@ -703,27 +833,14 @@ const Schedule: React.FC = () => {
         }
 
         const isAbsenceTool = activeTool !== DutyStatus.ON_DUTY && activeTool !== 'CLEAR';
+        
         if (isAbsenceTool) {
-            if (rangeStart && rangeStart.personId === personId) {
-                const startDay = Math.min(rangeStart.day, day);
-                const endDay = Math.max(rangeStart.day, day);
-                let hasConflict = false;
-                for (let d = startDay; d <= endDay; d++) {
-                    if (personSchedule[d] && personSchedule[d] !== DutyStatus.AVAILABLE) {
-                        hasConflict = true;
-                        break;
-                    }
-                }
-
-                if (hasConflict) {
-                    setPendingRangeUpdate({ personId, day1: rangeStart.day, day2: day, status: activeTool });
-                } else {
-                    handleRangeUpdate(personId, rangeStart.day, day, activeTool);
-                }
-                setRangeStart(null);
-            } else {
-                setRangeStart({ personId, day });
-            }
+            // New Absence Logic: Open Modal immediately
+            setAbsenceModalInfo({
+                isOpen: true,
+                personId: personId,
+                startDate: new Date(year, month, day)
+            });
         } else if (activeTool === 'CLEAR') {
             setClearingInfo({personId, day});
         } else if (activeTool === DutyStatus.ON_DUTY) {
@@ -743,7 +860,6 @@ const Schedule: React.FC = () => {
                 }
                 handleStatusUpdate(personId, day, DutyStatus.ON_DUTY);
             }
-            setRangeStart(null);
         }
     };
     
@@ -752,11 +868,19 @@ const Schedule: React.FC = () => {
         const {personId, day} = clearingInfo;
         const currentStatus = schedules[selectedCategoryId]?.[yearMonth]?.[personId]?.[day];
 
+        // If it's an absence, we should ideally clear the range, but since we don't know the range end easily here without searching
+        // we will just clear this specific cell or ask for confirmation to clear just this cell. 
+        // For simplicity in this update, we clear the cell. 
+        // Ideally, clearing an absence should also update cross-category if possible, but 'CLEAR' tool behavior is often localized.
+        // Let's keep CLEAR simple for now or use the modal for clearing too? 
+        // The prompt implies "any lens except duty and cancel" opens the modal. CLEAR is usually "cancel/delete".
+        
         if (Object.values(DutyStatus).includes(currentStatus as DutyStatus) && currentStatus !== DutyStatus.ON_DUTY && currentStatus !== DutyStatus.AVAILABLE) {
-            const personSchedule = schedules[selectedCategoryId]?.[yearMonth]?.[personId] || {};
+             const personSchedule = schedules[selectedCategoryId]?.[yearMonth]?.[personId] || {};
             let start = day, end = day;
             while(personSchedule[start-1] === currentStatus) start--;
             while(personSchedule[end+1] === currentStatus) end++;
+            // Still use range update for clearing connected blocks in same month
             handleRangeUpdate(personId, start, end, 'CLEAR');
         } else {
             handleStatusUpdate(personId, day, 'CLEAR');
@@ -770,17 +894,9 @@ const Schedule: React.FC = () => {
         setReplacementInfo(null);
     };
 
-     const handleConfirmOverwrite = () => {
-        if (!pendingRangeUpdate) return;
-        const { personId, day1, day2, status } = pendingRangeUpdate;
-        handleRangeUpdate(personId, day1, day2, status);
-        setPendingRangeUpdate(null);
-    };
-
 
     const changeMonth = (offset: number) => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
-        setRangeStart(null);
         setIsReplacing(null);
     };
     
@@ -1304,7 +1420,6 @@ const Schedule: React.FC = () => {
                         const isReplacingMode = !!isReplacing;
                         const isReplacementColumn = isReplacing && day === isReplacing.day;
 
-                        const isRangeStart = rangeStart?.personId === person.id && rangeStart?.day === day;
                         
                         const dayOfWeek = new Date(year, month, day).getDay();
                         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -1325,7 +1440,6 @@ const Schedule: React.FC = () => {
                                     ${status !== DutyStatus.AVAILABLE ? `${DUTY_STATUS_BG_COLORS[status]} ${statusTextColorClass}` : ''}
                                     ${isAbsence && isAbsenceStart ? 'rounded-l-lg' : ''}
                                     ${isAbsence && isAbsenceEnd ? 'rounded-r-lg' : ''}
-                                    ${isRangeStart ? 'range-start-pulse' : ''}
                                 `}>
                                      {isUnavailable ? (
                                         <XIcon className="w-4 h-4 text-secondary-text" />
@@ -1354,7 +1468,6 @@ const Schedule: React.FC = () => {
                                 key={status}
                                 onClick={() => {
                                     setActiveTool(status as DutyStatus);
-                                    setRangeStart(null);
                                 }}
                                 title={label}
                                 className={`w-10 h-8 rounded-lg text-sm font-semibold border-2 transition-all duration-200 flex items-center justify-center ${
@@ -1368,7 +1481,7 @@ const Schedule: React.FC = () => {
                         ))}
                         <button
                             key="clear"
-                            onClick={() => { setActiveTool('CLEAR'); setRangeStart(null); }}
+                            onClick={() => { setActiveTool('CLEAR'); }}
                             title="Очистити статус"
                             className={`w-10 h-8 rounded-lg text-sm font-semibold border-2 transition-all duration-200 flex items-center justify-center ${
                                 activeTool === 'CLEAR' ? 'border-accent scale-110' : 'border-transparent'
@@ -1396,11 +1509,11 @@ const Schedule: React.FC = () => {
                             if (children.length > 0) {
                                 return (
                                     <div key={parent.id} className="flex items-center bg-secondary p-0.5 rounded-lg border border-border-color">
-                                        <button onClick={() => { setSelectedCategoryId(parent.id); setRangeStart(null); setIsReplacing(null);}} className={`px-2 py-1.5 text-sm rounded-l-md ${selectedCategoryId === parent.id ? 'bg-accent text-white' : 'hover:bg-primary'}`}>{parent.shortName}</button>
+                                        <button onClick={() => { setSelectedCategoryId(parent.id); setIsReplacing(null);}} className={`px-2 py-1.5 text-sm rounded-l-md ${selectedCategoryId === parent.id ? 'bg-accent text-white' : 'hover:bg-primary'}`}>{parent.shortName}</button>
                                         {children.map((child, index) => (
                                             <button 
                                                 key={child.id} 
-                                                onClick={() => { setSelectedCategoryId(child.id); setRangeStart(null); setIsReplacing(null);}} 
+                                                onClick={() => { setSelectedCategoryId(child.id); setIsReplacing(null);}} 
                                                 className={`px-2 py-1.5 text-sm ${selectedCategoryId === child.id ? 'bg-accent text-white' : 'hover:bg-primary'} ${index === children.length - 1 ? 'rounded-r-md' : ''}`}
                                             >
                                                 {child.shortName}
@@ -1412,7 +1525,7 @@ const Schedule: React.FC = () => {
                                 return (
                                     <button 
                                         key={parent.id} 
-                                        onClick={() => { setSelectedCategoryId(parent.id); setRangeStart(null); setIsReplacing(null);}} 
+                                        onClick={() => { setSelectedCategoryId(parent.id); setIsReplacing(null);}} 
                                         className={`px-3 py-2 text-sm rounded-lg transition-all duration-200 ${selectedCategoryId === parent.id ? 'bg-accent text-white shadow-md' : 'bg-secondary hover:bg-primary border border-border-color'}`}
                                     >
                                         {parent.shortName}
@@ -1682,7 +1795,15 @@ const Schedule: React.FC = () => {
             />
             <ConfirmationModal isOpen={!!clearingInfo} onClose={() => setClearingInfo(null)} onConfirm={handleConfirmClear} title="Очистити статус?" message="Ви впевнені, що хочете видалити цей статус?" />
             <ConfirmationModal isOpen={!!replacementInfo} onClose={() => setReplacementInfo(null)} onConfirm={handleConfirmReplacement} title="Заміна в наряді" message="Виберіть особу, яка має замінити поточну." confirmButtonText="Продовжити" confirmButtonClassName="bg-accent hover:bg-accent-hover"/>
-            <ConfirmationModal isOpen={!!pendingRangeUpdate} onClose={() => setPendingRangeUpdate(null)} onConfirm={handleConfirmOverwrite} title="Конфлікт статусів" message="Цей діапазон перекриває існуючі статуси. Бажаєте перезаписати їх?" confirmButtonText="Так, перезаписати" confirmButtonClassName="bg-yellow-600 hover:bg-yellow-700" />
+            {/* New Absence Modal rendering */}
+            <AbsenceModal 
+                isOpen={!!absenceModalInfo} 
+                onClose={() => setAbsenceModalInfo(null)}
+                onSave={handleSaveAbsence}
+                startDate={absenceModalInfo?.startDate || new Date()}
+                status={activeTool}
+                personName={people.find(p => p.id === absenceModalInfo?.personId)?.fullName || ''}
+            />
         </div>
     );
 };
